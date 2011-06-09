@@ -19,6 +19,7 @@ main
 )
  
 include_directories ( ${OpenCV_INCLUDE_DIRS} )
+link_directories ( ${OpenCV_LIB_DIRS} )
 add_executable (hytrack ${SRC})
-target_link_libraries (hytrack m)
+target_link_libraries (hytrack m ${OpenCV_LIBS} )
 
