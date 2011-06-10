@@ -11,6 +11,9 @@ int main(int argc, char** argv) {
 	FeatureDetector* detector = 0;
 	DescriptorExtractor* descriptor = 0;
 	vector<KeyPoint> keypoints;
+	DescriptorMatcher* matcher = 0;
+	vector<DMatch> matches;
+	vector<Mat> desc_vector;
 
 	img1 = imread("ex.jpg", CV_LOAD_IMAGE_COLOR);
 	if (img1.empty()) {
@@ -31,11 +34,18 @@ int main(int argc, char** argv) {
 	Mat desc;
 	if(keypoints.size() > 0) {
 		descriptor->compute(img1, keypoints, desc);
+		desc_vector.push_back(desc);
 	}
 
 	for(int i = 0; i < keypoints.size(); i++) {
 		circle(img1, keypoints[i].pt, 2, CV_RGB(0, 255, 0));
 	}
+
+	matcher = new BruteForceMatcher<L2<float> > ();
+
+	matcher->clear();
+	matcher->add(desc_vector);
+	matcher->match(desc, matches);
 
 	namedWindow("Win", 1);
 	imshow("Win", img1);
