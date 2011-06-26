@@ -87,6 +87,24 @@ public:
 		for(int i = 0; i < keypoints.size(); i++) {
 			circle(img, keypoints[i].pt, 2, CV_RGB(0, 255, 0));
 		}
+
+		int channels[] = {0};
+		Mat hist;
+		Mat backproj;
+		float hranges[] = {0,180};
+		const float* phranges = hranges;
+
+ 		calcBackProject(&desc, 1, channels, hist, backproj, &phranges);
+
+ 		meanShift(backproj, roi, TermCriteria(CV_TERMCRIT_EPS | CV_TERMCRIT_ITER, 10, 1));
+	}
+
+	void match() {
+		matcher = new BruteForceMatcher<L2<float> > ();
+
+		matcher->clear();
+		matcher->add(desc_vector);
+		matcher->match(desc, matches);
 	}
 
 	void addROI(Rect _roi) {
@@ -104,11 +122,7 @@ public:
 
 		img.adjustROI(dtop, dbottom, dleft, dright);
 		findDescriptors();
-		matcher = new BruteForceMatcher<L2<float> > ();
 
-		matcher->clear();
-		matcher->add(desc_vector);
-		matcher->match(desc, matches);
 		img.adjustROI(-dtop, -dbottom, -dleft, -dright);
 		return img;
 	}
