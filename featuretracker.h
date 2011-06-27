@@ -1,12 +1,5 @@
-/*
- * cvTracker.h
- *
- *  Created on: Jun 5, 2011
- *      Author: pushkar
- */
-
-#ifndef CVTRACKER_H_
-#define CVTRACKER_H_
+#ifndef FEATURETRACKER_H_
+#define FEATURETRACKER_H_
 
 #include <cv.h>
 #include <cvaux.h>
@@ -15,41 +8,12 @@
 using namespace cv;
 using namespace std;
 
-class CvROITracker {
-private:
-	int w, h;
-	CvSeq* x, y;		// Track of this object
-	CvSeq* histogram;	// For Mean Shift
-	CvSeq* features; 	// or use CvFeatureTree
-						// SIFT features
-	int w_ms;			// Param1 - Weight of shift based similarity measure
-	int w_feature;		// Param2 - Weight of SOFT based similarity measure
-public:
-	CvROITracker(int x, int y, int w, int h);
-	~CvROITracker();
-
-	void update(CvMat* mat);
-	// Uses some kernel to create a histogram
-	// Creates a feature descriptor using some algorithms
-	// Should the kernel and feature descriptor be specified by the user?
-	// Or set optional params that will choose between various kernels and feature descriptors.
-
-	void predict();
-	void estimate();
-	// Parameter estimation using EM
-
-	void smooth();
-	// Post processing of the path using Kalman filter
-
-};
-
-class CvTracker {
+class FeatureTracker {
 private:
 	Mat img;
 	FeatureDetector* detector;
 	DescriptorExtractor* descriptor;
 	vector<KeyPoint> keypoints;
-
 	DescriptorMatcher* matcher;
 	vector<DMatch> matches;
 	vector<Mat> desc_vector;
@@ -58,7 +22,7 @@ private:
 	Rect roi;
 
 public:
-	CvTracker() {
+	FeatureTracker() {
 		detector = new SiftFeatureDetector(SIFT::DetectorParams::GET_DEFAULT_THRESHOLD(),
 				SIFT::DetectorParams::GET_DEFAULT_EDGE_THRESHOLD(),
 				SIFT::CommonParams::AVERAGE_ANGLE);
@@ -69,7 +33,7 @@ public:
 		// octaves, octave_layers, extended
 	};
 
-	~CvTracker() { };
+	~FeatureTracker() { };
 
 	void priorImage(Mat _img) {
 		img = _img.clone();
@@ -128,4 +92,4 @@ public:
 	}
 };
 
-#endif /* CVTRACKER_H_ */
+#endif /* FEATURETRACKER_H_ */

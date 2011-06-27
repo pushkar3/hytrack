@@ -1,0 +1,10 @@
+hytrack
+
+To get started:
+0. git clone git://github.com/pushkar3/hytrack.git
+1. git checkout ms
+2. wget http://pushkar.name/dump/seqG.tar.gz
+3. tar -xvf segG.tar.gz
+4. cmake .
+5. make
+6. ./hytrack
