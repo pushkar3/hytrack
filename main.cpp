@@ -36,6 +36,7 @@ void onMouse(int event, int x, int y, int, void*) {
     case CV_EVENT_LBUTTONUP:
         selectObject = false;
         ctracker.init(image, selection);
+        ftracker.init(image, selection);
         trackObject = 1;
         break;
     }
@@ -49,20 +50,23 @@ int main(int argc, char** argv) {
 	setMouseCallback("Win", onMouse, 0);
 
 	for(int i = 0; i < 1000; i++) {
-		sprintf(img_file, "../seqG/%04d.png", i);
+		sprintf(img_file, "seqG/%04d.png", i);
 		image = imread(img_file, CV_LOAD_IMAGE_COLOR);
 
 		if (!image.empty()) {
 
 			if(trackObject) {
-				Rect win = ctracker.track(image);
-				rectangle(image, Point(win.x, win.y), Point(win.x + win.width, win.y + win.height), Scalar(0, 0, 255), 3, CV_AA);
+				Rect win1 = ctracker.track(image);
+				rectangle(image, Point(win1.x, win1.y), Point(win1.x + win1.width, win1.y + win1.height), Scalar(0, 0, 255), 3, CV_AA);
+				Rect win2 = ftracker.track(image);
+				rectangle(image, Point(win2.x, win2.y), Point(win2.x + win2.width, win2.y + win2.height), Scalar(0, 255, 0), 3, CV_AA);
 			}
 
 			if (selectObject && selection.width > 0 && selection.height > 0) {
 				Mat roi(image, selection);
 				bitwise_not(roi, roi);
 			}
+
 
 			imshow("Win", image);
 			waitKey(30);

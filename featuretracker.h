@@ -10,7 +10,6 @@ using namespace std;
 
 class FeatureTracker {
 private:
-	Mat img;
 	FeatureDetector* detector;
 	DescriptorExtractor* descriptor;
 	vector<KeyPoint> keypoints;
@@ -19,7 +18,7 @@ private:
 	vector<Mat> desc_vector;
 
 	Mat desc;
-	Rect roi;
+	Rect trackWindow;
 
 public:
 	FeatureTracker() {
@@ -35,32 +34,26 @@ public:
 
 	~FeatureTracker() { };
 
-	void priorImage(Mat _img) {
-		img = _img.clone();
-	}
-
-	void findDescriptors() {
-		detector->detect(img, keypoints);
-		cout << "Number of keypoints: " << keypoints.size() << endl;
+	void init(Mat image, Rect selection) {
+		trackWindow = selection;
+		Mat roi(image, selection);
+		desc_vector.clear();
+		detector->detect(roi, keypoints);
 
 		if(keypoints.size() > 0) {
-			descriptor->compute(img, keypoints, desc);
+			descriptor->compute(image, keypoints, desc);
 			desc_vector.push_back(desc);
 		}
 
 		for(int i = 0; i < keypoints.size(); i++) {
-			circle(img, keypoints[i].pt, 2, CV_RGB(0, 255, 0));
+			int x = selection.x + keypoints[i].pt.x;
+			int y = selection.y + keypoints[i].pt.y;
+			circle(image, Point(x, y), 2, CV_RGB(0, 255, 0));
 		}
+	}
 
-		int channels[] = {0};
-		Mat hist;
-		Mat backproj;
-		float hranges[] = {0,180};
-		const float* phranges = hranges;
-
- 		calcBackProject(&desc, 1, channels, hist, backproj, &phranges);
-
- 		meanShift(backproj, roi, TermCriteria(CV_TERMCRIT_EPS | CV_TERMCRIT_ITER, 10, 1));
+	Rect track(Mat image) {
+		return trackWindow;
 	}
 
 	void match() {
@@ -69,26 +62,6 @@ public:
 		matcher->clear();
 		matcher->add(desc_vector);
 		matcher->match(desc, matches);
-	}
-
-	void addROI(Rect _roi) {
-		roi = _roi;
-	}
-
-	Mat updateTracks(Mat _img) {
-		img = _img;
-		rectangle(img, Point(roi.x, roi.y), Point(roi.x+roi.width, roi.y+roi.height), Scalar(255, 255, 255));
-
-		int dtop = -roi.y;
-		int dbottom = -img.rows+roi.y+roi.height;
-		int dleft = -roi.x;
-		int dright = -img.cols+roi.x+roi.width;
-
-		img.adjustROI(dtop, dbottom, dleft, dright);
-		findDescriptors();
-
-		img.adjustROI(-dtop, -dbottom, -dleft, -dright);
-		return img;
 	}
 };
 
