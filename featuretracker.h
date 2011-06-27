@@ -13,12 +13,15 @@ private:
 	FeatureDetector* detector;
 	DescriptorExtractor* descriptor;
 	DescriptorMatcher* matcher;
-	vector<vector<DMatch> > matches;
+	vector<DMatch> matches;
 	vector<Mat> desc_vector;
 
 	Mat roi_desc;
-	int roi_keypoints;
+	vector<KeyPoint> roi_keypoints;
+	Point roi_origin;
+	int roi_keys;
 	Rect trackWindow;
+	int window_searchsize;
 
 public:
 	FeatureTracker() {
@@ -34,45 +37,77 @@ public:
 		matcher = new BruteForceMatcher<L2<float> > ();
 		// SSD matcher
 
-		roi_keypoints = 0;
+		roi_keys = 0;
+		window_searchsize = 10;
 	};
 
 	~FeatureTracker() { };
 
+	// Calculate keypoints of the roi
+	// Store keypoints and center of the roi
 	void init(Mat image, Rect selection) {
-		vector<KeyPoint> keypoints;
-
 		trackWindow = selection;
 		Mat roi(image, selection);
 		desc_vector.clear();
-		detector->detect(roi, keypoints);
+		detector->detect(roi, roi_keypoints);
 
-		if (keypoints.size() > 0) {
-			roi_keypoints = keypoints.size();
-			descriptor->compute(roi, keypoints, roi_desc);
+		if (roi_keypoints.size() > 0) {
+			roi_keys = roi_keypoints.size();
+			descriptor->compute(roi, roi_keypoints, roi_desc);
 
-			for (int i = 0; i < keypoints.size(); i++) {
-				int x = selection.x + keypoints[i].pt.x;
-				int y = selection.y + keypoints[i].pt.y;
-				circle(image, Point(x, y), 2, CV_RGB(0, 255, 0));
+			for (int i = 0; i < roi_keypoints.size(); i++) {
+				roi_keypoints[i].pt.x += selection.x;
+				roi_keypoints[i].pt.y += selection.y;
+				circle(image, roi_keypoints[i].pt, 2, CV_RGB(0, 255, 0));
 			}
+
+			roi_origin.x = selection.x + selection.width/2.0;
+			roi_origin.y = selection.y + selection.height/2.0;
 		}
 
 	}
 
+	// Calculate keypoints around the roi
+	// Match keypoints and try to find new center of the roi
+	// TODO: Very unstable!
 	Rect track(Mat image) {
 		vector<KeyPoint> keypoints;
 		Mat desc;
+		Rect newtrackWindow = trackWindow;
 
-		detector->detect(image, keypoints);
+		newtrackWindow.x -= window_searchsize;
+		newtrackWindow.y -= window_searchsize;
+		newtrackWindow.width += window_searchsize;
+		newtrackWindow.height += window_searchsize;
+		if(newtrackWindow.x < 0) newtrackWindow.x = 0;
+		if(newtrackWindow.y < 0) newtrackWindow.y = 0;
+
+		Mat roi(image, newtrackWindow);
+		detector->detect(roi, keypoints);
 		if(keypoints.size() > 0) {
-			descriptor->compute(image, keypoints, desc);
-			for (int i = 0; i < keypoints.size(); i++)
+			descriptor->compute(roi, keypoints, desc);
+			for (int i = 0; i < keypoints.size(); i++) {
+				keypoints[i].pt.x += newtrackWindow.x;
+				keypoints[i].pt.y += newtrackWindow.y;
 				circle(image, keypoints[i].pt, 2, CV_RGB(0, 255, 0));
+			}
 
-			matcher->clear();
-			matcher->knnMatch(desc, roi_desc, matches, roi_keypoints);
-			cout << "Matches size is " << matches.size() << endl;
+			matcher->match(roi_desc, desc, matches);
+
+
+			Point origin;
+			for(int i = 0; i < matches.size(); i++) {
+				//line(image, roi_keypoints[matches[i].queryIdx].pt, keypoints[matches[i].trainIdx].pt, Scalar(0, 0, 255), 1, CV_AA, 0);
+				origin.x += keypoints[matches[i].trainIdx].pt.x;
+				origin.y += keypoints[matches[i].trainIdx].pt.y;
+			}
+
+			origin.x /= matches.size();
+			origin.y /= matches.size();
+
+			trackWindow.x += (origin.x - roi_origin.x);
+			trackWindow.y += (origin.y - roi_origin.y);
+			roi_origin = origin;
 		}
 
 		return trackWindow;
