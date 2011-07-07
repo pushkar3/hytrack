@@ -33,6 +33,10 @@ public:
 		trackWindow = selection;
 	}
 
+	void setTrackWindow(Rect _window) {
+		trackWindow = _window;
+	}
+
 	Rect track(Mat image) {
 		float hranges[] = {0,180};
 		const float* phranges = hranges;

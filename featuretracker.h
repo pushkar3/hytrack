@@ -38,7 +38,7 @@ public:
 		// SSD matcher
 
 		roi_keys = 0;
-		window_searchsize = 10;
+		window_searchsize = 1;
 	};
 
 	~FeatureTracker() { };
@@ -65,6 +65,10 @@ public:
 			roi_origin.y = selection.y + selection.height/2.0;
 		}
 
+	}
+
+	void setTrackWindow(Rect _window) {
+		trackWindow = _window;
 	}
 
 	// Calculate keypoints around the roi
