@@ -34,7 +34,7 @@ public:
 		descriptor = new SurfDescriptorExtractor(3, 4, false);
 		// octaves, octave_layers, extended
 
-		matcher = new BruteForceMatcher<L2<float> > ();
+		matcher = new  BruteForceMatcher<L2<float> > ();
 		// SSD matcher
 
 		roi_keys = 0;
