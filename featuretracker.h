@@ -38,7 +38,7 @@ public:
 		// SSD matcher
 
 		roi_keys = 0;
-		window_searchsize = 1;
+		window_searchsize = 0;
 	};
 
 	~FeatureTracker() { };
@@ -88,7 +88,7 @@ public:
 
 		Mat roi(image, newtrackWindow);
 		detector->detect(roi, keypoints);
-		if(keypoints.size() > 0) {
+		if(keypoints.size() > 10) {
 			descriptor->compute(roi, keypoints, desc);
 			for (int i = 0; i < keypoints.size(); i++) {
 				keypoints[i].pt.x += newtrackWindow.x;
