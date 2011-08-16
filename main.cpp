@@ -53,6 +53,13 @@ float w1 = 0.5;
 float w2 = 0.5;
 
 int main(int argc, char** argv) {
+
+	Mat A = (Mat_<double>(3,3) << 1, 0, 0, 0, 1, 0, 0, 0, 1);
+	Mat B = (Mat_<double>(3,3) << 1, 0, 0, 0, 1, 0, 0, 0, 1);
+	Mat C = 0.3*A.mul(B);
+	cout << C << endl;
+	return 0;
+
 	char img_file[20] = "seqG/0001.png";
 	namedWindow("Temp", 1);
 	namedWindow("Win", 2);
