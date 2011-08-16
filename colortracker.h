@@ -1,5 +1,5 @@
-#ifndef HYBRIDTRACKER_H_
-#define HYBRIDTRACKER_H_
+#ifndef MSTRACKER_H_
+#define MSTRACKER_H_
 
 #include <cvaux.h>
 #include <iostream>
@@ -7,9 +7,9 @@
 using namespace cv;
 using namespace std;
 
-class HybridTracker {
+class MeanShiftTracker {
 public:
-	Mat hsv;
+	Mat hsv, hue;
 	Mat backproj;
 	Mat mask, maskroi;
 	MatND hist;
@@ -20,46 +20,47 @@ public:
 	CvEM em_model;
 	CvEMParams params;
 
-	HybridTracker() { 	}
+	MeanShiftTracker() { 	}
 
-	~HybridTracker() {	}
+	~MeanShiftTracker() {	}
 
 	void init(Mat image, Rect selection) {
 
-		int histSize[] = { image.rows, image.cols };
-		int channels[] = { 0, 1, 2 };
+		hist.release();
+		int histSize = 16;
+		int channels[] = { 0, 0 };
 		float hrange[] = { 0, 180 };
-		float srange[] = { 0, 256 };
-		float vrange[] = { 0, 1 };
-		const float* ranges[] = { hrange, srange, vrange };
+		const float* ranges = hrange;
 
 		cvtColor(image, hsv, CV_BGR2HSV);
 		inRange(hsv, Scalar(0, 0, 0), Scalar(256, 256, 256), mask);
 
-		Mat hsv_roi(hsv, selection);
+		hue.create(hsv.size(), hsv.depth());
+		Mat roi(hue, selection);
 		Mat maskroi(mask, selection);
-		calcHist(&hsv_roi, 1, channels, maskroi, hist, 2, histSize, ranges, true, false);
+		calcHist(&roi, 1, 0, maskroi, hist, 1, &histSize, &ranges);
 		normalize(hist, hist, 0, 255, CV_MINMAX);
-		calcBackProject(&hsv, 1, channels, hist, backproj, ranges);
 
 		trackwindow = selection;
 	}
 
 
-	void track(Mat image) {
-		int channels[] = { 0, 1, 2 };
+	RotatedRect track(Mat image) {
+		int channels[] = { 0, 0 };
 		float hrange[] = { 0, 180 };
-		float srange[] = { 0, 256 };
-		float vrange[] = { 0, 1 };
-		const float* ranges[] = { hrange, srange, vrange };
+		const float* ranges = hrange;
 
 		cvtColor(image, hsv, CV_BGR2HSV);
-		calcBackProject(&hsv, 1, channels, hist, backproj, ranges);
-		meanShift(backproj, trackwindow, TermCriteria(CV_TERMCRIT_EPS | CV_TERMCRIT_ITER, 10, 1));
-	}
-
-	void setTrackWindow(Rect _window) {
-		trackwindow = _window;
+		inRange(hsv, Scalar(0, 30, MIN(10, 256)), Scalar(180, 256, MAX(10, 256)), mask);
+		mixChannels(&hsv, 1, &hue, 1, channels, 1);
+		calcBackProject(&hue, 1, 0, hist, backproj, &ranges);
+		//normalize(backproj, backproj, 0, 255, CV_MINMAX);
+		backproj &= mask;
+		// meanShift(backproj, trackwindow, TermCriteria(CV_TERMCRIT_EPS | CV_TERMCRIT_ITER, 10, 1));
+		RotatedRect trackbox = CamShift(backproj, trackwindow, TermCriteria( CV_TERMCRIT_EPS | CV_TERMCRIT_ITER, 10, 1 ));
+		int cols = backproj.cols, rows = backproj.rows, r = (MIN(cols, rows) + 5)/6;
+		trackwindow = Rect(trackwindow.x - r, trackwindow.y - r, trackwindow.x + r, trackwindow.y + r) & Rect(0, 0, cols, rows);
+		return trackbox;
 	}
 
 	void fillForEM() {
@@ -107,4 +108,4 @@ public:
 	}
 };
 
-#endif /* HYBRIDTRACKER_H_ */
+#endif

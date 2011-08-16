@@ -116,6 +116,10 @@ public:
 
 		return trackWindow;
 	}
+
+	void runRANSAC() {
+
+	}
 };
 
 #endif /* FEATURETRACKER_H_ */

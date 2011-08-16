@@ -8,6 +8,7 @@
 
 #include "colortracker.h"
 #include "featuretracker.h"
+#include "hybridtracker.h"
 
 using namespace cv;
 using namespace std;
@@ -43,7 +44,7 @@ void onMouse(int event, int x, int y, int, void*) {
 	case CV_EVENT_LBUTTONUP:
 		selectObject = false;
 		trackObject = 1;
-		tracker.init(image, selection);
+		//tracker.init(image, selection);
 		cout << "Init done" << endl;
 		break;
 	}
@@ -58,6 +59,11 @@ int main(int argc, char** argv) {
 	Mat B = (Mat_<double>(3,3) << 1, 0, 0, 0, 1, 0, 0, 0, 1);
 	Mat C = 0.3*A.mul(B);
 	cout << C << endl;
+
+	tracker.set(Size(640, 480));
+	Mat img = tracker.getDistanceProjection(Point2d(240, 320));
+	imshow("Win", img);
+	cvWaitKey(0);
 	return 0;
 
 	char img_file[20] = "seqG/0001.png";
@@ -74,9 +80,9 @@ int main(int argc, char** argv) {
 		if (!image.empty()) {
 
 			if (trackObject) {
-				tracker.track(image);
-				drawRectangle(&image, tracker.trackwindow);
-				imshow("Temp", tracker.backproj);
+//				tracker.track(image);
+//				drawRectangle(&image, tracker.trackwindow);
+//				imshow("Temp", tracker.backproj);
 			}
 
 			if (selectObject && selection.width > 0 && selection.height > 0) {
@@ -87,7 +93,7 @@ int main(int argc, char** argv) {
 			putText(image, "Hybrid Tracker", Point(20, 20),
 					FONT_HERSHEY_SIMPLEX, 0.5f, Scalar(255, 255, 255));
 
-			tracker.setTrackWindow(selection);
+			//tracker.setTrackWindow(selection);
 
 			sprintf(img_file, "out/%04d.png", i);
 			imwrite(img_file, image);
