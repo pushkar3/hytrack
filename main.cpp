@@ -55,16 +55,10 @@ float w2 = 0.5;
 
 int main(int argc, char** argv) {
 
-	Mat A = (Mat_<double>(3,3) << 1, 0, 0, 0, 1, 0, 0, 0, 1);
-	Mat B = (Mat_<double>(3,3) << 1, 0, 0, 0, 1, 0, 0, 0, 1);
-	Mat C = 0.3*A.mul(B);
-	cout << C << endl;
-
-	tracker.set(Size(640, 480));
-	Mat img = tracker.getDistanceProjection(Point2d(240, 320));
-	imshow("Win", img);
-	cvWaitKey(0);
-	return 0;
+//	Mat A = (Mat_<double>(3,3) << 1, 0, 0, 0, 1, 0, 0, 0, 1);
+//	Mat B = (Mat_<double>(3,3) << 1, 0, 0, 0, 1, 0, 0, 0, 1);
+//	Mat C = 0.3*A.mul(B);
+//	cout << C << endl;
 
 	char img_file[20] = "seqG/0001.png";
 	namedWindow("Temp", 1);
@@ -76,6 +70,11 @@ int main(int argc, char** argv) {
 
 		sprintf(img_file, "seqG/%04d.png", i);
 		image = imread(img_file, CV_LOAD_IMAGE_COLOR);
+		if(image.data == NULL) continue;
+
+		Rect sel(100, 100, 50, 50);
+		tracker.set(image, sel);
+		tracker.mergeTrackers(image);
 
 		if (!image.empty()) {
 

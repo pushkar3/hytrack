@@ -24,6 +24,8 @@ private:
 	int window_searchsize;
 
 public:
+	Point2d center;
+
 	FeatureTracker() {
 		detector = new SiftFeatureDetector(SIFT::DetectorParams::GET_DEFAULT_THRESHOLD(),
 				SIFT::DetectorParams::GET_DEFAULT_EDGE_THRESHOLD(),
@@ -101,7 +103,6 @@ public:
 
 			Point origin;
 			for(int i = 0; i < matches.size(); i++) {
-				//line(image, roi_keypoints[matches[i].queryIdx].pt, keypoints[matches[i].trainIdx].pt, Scalar(0, 0, 255), 1, CV_AA, 0);
 				origin.x += keypoints[matches[i].trainIdx].pt.x;
 				origin.y += keypoints[matches[i].trainIdx].pt.y;
 			}
@@ -114,6 +115,8 @@ public:
 			roi_origin = origin;
 		}
 
+		center.x = trackWindow.x + trackWindow.width/2;
+		center.y = trackWindow.y + trackWindow.height/2;
 		return trackWindow;
 	}
 

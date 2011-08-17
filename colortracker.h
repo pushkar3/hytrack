@@ -20,6 +20,8 @@ public:
 	CvEM em_model;
 	CvEMParams params;
 
+	Point2d center;
+
 	MeanShiftTracker() { 	}
 
 	~MeanShiftTracker() {	}
@@ -60,7 +62,10 @@ public:
 		RotatedRect trackbox = CamShift(backproj, trackwindow, TermCriteria( CV_TERMCRIT_EPS | CV_TERMCRIT_ITER, 10, 1 ));
 		int cols = backproj.cols, rows = backproj.rows, r = (MIN(cols, rows) + 5)/6;
 		trackwindow = Rect(trackwindow.x - r, trackwindow.y - r, trackwindow.x + r, trackwindow.y + r) & Rect(0, 0, cols, rows);
+		center.x = trackwindow.x + trackwindow.width/2;
+		center.y = trackwindow.y + trackwindow.height/2;
 		return trackbox;
+
 	}
 
 	void fillForEM() {
