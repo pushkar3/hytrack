@@ -75,7 +75,6 @@ public:
 
 	// Calculate keypoints around the roi
 	// Match keypoints and try to find new center of the roi
-	// TODO: Very unstable!
 	Rect track(Mat image) {
 		vector<KeyPoint> keypoints;
 		Mat desc;

@@ -23,6 +23,11 @@ public:
 	MeanShiftTracker mstracker;
 	FeatureTracker fttracker;
 
+	CvMat* samples;
+	CvMat* labels;
+	CvEM em_model;
+	CvEMParams params;
+
 	int w_ms, w_ft;
 
 public:
@@ -35,6 +40,20 @@ public:
 		w_ft = 0.5;
 		mstracker.init(image, selection);
 		fttracker.init(image, selection);
+
+		params.covs = NULL;
+		params.means = NULL;
+		params.probs = NULL;
+		params.nclusters = 1;
+		params.weights = NULL;
+		params.cov_mat_type = CvEM::COV_MAT_DIAGONAL;
+		params.start_step = CvEM::START_AUTO_STEP;
+		params.term_crit.max_iter = 10;
+		params.term_crit.epsilon = 0.1;
+		params.term_crit.type = CV_TERMCRIT_ITER | CV_TERMCRIT_EPS;
+
+		samples = cvCreateMat(_size.width*_size.height, 2, CV_32FC1);
+		labels = cvCreateMat(_size.width*_size.height, 1, CV_32SC1);
 	}
 
 	float getL2Norm(Point2d p1, Point2d p2) {
@@ -95,10 +114,23 @@ public:
 		Mat ft_distproj = getDistanceProjection(fttracker.center);
 		Mat ft_proj = ft_gaussproj.mul(ft_distproj);
 
-		Mat proj = w_ms*ms_proj + w_ft*ft_proj;
-		imshow("proj", proj);
+		Mat proj = w_ms * ms_proj + w_ft * ft_proj;
+
+		int cnt = 0;
+		for (int i = 0; i < _size.height; i++) {
+			for (int j = 0; j < _size.width; j++) {
+				samples->data.fl[cnt*2] = i;
+				samples->data.fl[cnt*2+1] = j;
+				cnt++;
+			}
+		}
+
+		em_model.train(samples, 0, params, labels);
+		for (int i = 0; i < em_model.get_nclusters(); i++)
+		cout << "Mean " << i << " is " << em_model.getMeans().at<double> (i, 0) << ", " << em_model.getMeans().at<double> (i, 1) << endl;
 	}
 };
 
 
 #endif /* HYBRIDTRACKER_H_ */
+

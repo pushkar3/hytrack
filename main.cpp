@@ -6,8 +6,6 @@
 #include <time.h>
 #include <iostream>
 
-#include "colortracker.h"
-#include "featuretracker.h"
 #include "hybridtracker.h"
 
 using namespace cv;
@@ -50,15 +48,7 @@ void onMouse(int event, int x, int y, int, void*) {
 	}
 }
 
-float w1 = 0.5;
-float w2 = 0.5;
-
 int main(int argc, char** argv) {
-
-//	Mat A = (Mat_<double>(3,3) << 1, 0, 0, 0, 1, 0, 0, 0, 1);
-//	Mat B = (Mat_<double>(3,3) << 1, 0, 0, 0, 1, 0, 0, 0, 1);
-//	Mat C = 0.3*A.mul(B);
-//	cout << C << endl;
 
 	char img_file[20] = "seqG/0001.png";
 	namedWindow("Temp", 1);
@@ -79,9 +69,6 @@ int main(int argc, char** argv) {
 		if (!image.empty()) {
 
 			if (trackObject) {
-//				tracker.track(image);
-//				drawRectangle(&image, tracker.trackwindow);
-//				imshow("Temp", tracker.backproj);
 			}
 
 			if (selectObject && selection.width > 0 && selection.height > 0) {
@@ -91,8 +78,6 @@ int main(int argc, char** argv) {
 
 			putText(image, "Hybrid Tracker", Point(20, 20),
 					FONT_HERSHEY_SIMPLEX, 0.5f, Scalar(255, 255, 255));
-
-			//tracker.setTrackWindow(selection);
 
 			sprintf(img_file, "out/%04d.png", i);
 			imwrite(img_file, image);
