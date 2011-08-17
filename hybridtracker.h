@@ -28,6 +28,8 @@ public:
 	CvEM em_model;
 	CvEMParams params;
 
+	Point2d center;
+
 	int w_ms, w_ft;
 
 public:
@@ -126,8 +128,10 @@ public:
 		}
 
 		em_model.train(samples, 0, params, labels);
+		center = em_model.getMeans().at<Point2d>(0);
+
 		for (int i = 0; i < em_model.get_nclusters(); i++)
-		cout << "Mean " << i << " is " << em_model.getMeans().at<double> (i, 0) << ", " << em_model.getMeans().at<double> (i, 1) << endl;
+			cout << "Mean " << i << " is " << em_model.getMeans().at<double> (i, 0) << ", " << em_model.getMeans().at<double> (i, 1) << endl;
 	}
 };
 

@@ -42,7 +42,7 @@ void onMouse(int event, int x, int y, int, void*) {
 	case CV_EVENT_LBUTTONUP:
 		selectObject = false;
 		trackObject = 1;
-		//tracker.init(image, selection);
+		tracker.set(image, selection);
 		cout << "Init done" << endl;
 		break;
 	}
@@ -51,8 +51,7 @@ void onMouse(int event, int x, int y, int, void*) {
 int main(int argc, char** argv) {
 
 	char img_file[20] = "seqG/0001.png";
-	namedWindow("Temp", 1);
-	namedWindow("Win", 2);
+	namedWindow("Win", 1);
 	setMouseCallback("Win", onMouse, 0);
 
 
@@ -62,13 +61,13 @@ int main(int argc, char** argv) {
 		image = imread(img_file, CV_LOAD_IMAGE_COLOR);
 		if(image.data == NULL) continue;
 
-		Rect sel(100, 100, 50, 50);
-		tracker.set(image, sel);
-		tracker.mergeTrackers(image);
-
 		if (!image.empty()) {
 
 			if (trackObject) {
+				tracker.mergeTrackers(image);
+				selection.x = tracker.center.x;
+				selection.y = tracker.center.y;
+				drawRectangle(&image, selection);
 			}
 
 			if (selectObject && selection.width > 0 && selection.height > 0) {
