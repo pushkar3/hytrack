@@ -45,16 +45,35 @@
 
 #include <cv.h>
 #include <ml.h>
-#include <iostream>
 
-using namespace cv;
-
-struct CvTrackerParams
+namespace cv
 {
-	CvTrackerParams();
-	int mean_shift_tracking;
-	int sift_feature_tracking;
-	int surf_feature_tracking;
+
+struct CvMeanShiftTrackerParams
+{
+	CvMeanShiftTrackerParams();
+	CvTermCriteria term_crit;
+};
+
+struct CvFeatureTrackerParams
+{
+	enum
+	{
+		SIFT = 0, SURF = 0
+	};
+	CvFeatureTrackerParams();
+	CvFeatureTrackerParams(int feature_type = 0, int window_size = 0);
+
+	int feature_type;
+	int window_size;
+};
+
+struct CvHybridTrackerParams
+{
+	CvHybridTrackerParams();
+
+	CvFeatureTrackerParams ft_params;
+	CvMeanShiftTrackerParams ms_params;
 };
 
 class CvMeanShiftTracker
@@ -126,5 +145,13 @@ public:
 	Mat getGaussianProjection(int ksize, double sigma, Point2d center);
 	void mergeTrackers(Mat image);
 };
+
+typedef CvMeanShiftTrackerParams MeanShiftTrackerParams;
+typedef CvFeatureTrackerParams FeatureTrackerParams;
+typedef CvHybridTrackerParams HybridTrackerParams;
+typedef CvMeanShiftTracker MeanShiftTracker;
+typedef CvFeatureTracker FeatureTracker;
+typedef CvHybridTracker HybridTracker;
+}
 
 #endif
