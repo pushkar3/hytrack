@@ -6,7 +6,7 @@
 #include <time.h>
 #include <iostream>
 
-#include "hybridtracker.h"
+#include "hybridtracker.hpp"
 
 using namespace cv;
 using namespace std;
@@ -17,7 +17,7 @@ Point origin;
 bool selectObject = false;
 int trackObject = 0;
 
-HybridTracker tracker;
+CvHybridTracker tracker;
 
 void drawRectangle(Mat* image, Rect win) {
 	rectangle(*image, Point(win.x, win.y), Point(win.x + win.width, win.y
@@ -47,6 +47,7 @@ void onMouse(int event, int x, int y, int, void*) {
 		break;
 	}
 }
+
 
 int main(int argc, char** argv) {
 
@@ -88,5 +89,6 @@ int main(int argc, char** argv) {
 	}
 
 return 0;
+
 }
 

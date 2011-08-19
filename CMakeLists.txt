@@ -16,6 +16,9 @@ find_package ( OpenCV REQUIRED )
 
 set ( SRC
 main
+hybridtracker
+featuretracker
+colortracker
 )
  
 include_directories ( ${OpenCV_INCLUDE_DIRS} )
