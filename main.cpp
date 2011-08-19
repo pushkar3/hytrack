@@ -6,7 +6,7 @@
 #include <time.h>
 #include <iostream>
 
-#include "hybridtracker.hpp"
+#include "opencv2/tracker/hybridtracker.hpp"
 
 using namespace cv;
 using namespace std;

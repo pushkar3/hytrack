@@ -43,8 +43,13 @@
 #ifndef __OPENCV_HYBRIDTRACKER_H_
 #define __OPENCV_HYBRIDTRACKER_H_
 
-#include <cv.h>
-#include <ml.h>
+#include "opencv2/core/core.hpp"
+#include "opencv2/imgproc/imgproc.hpp"
+#include "opencv2/features2d/features2d.hpp"
+#include "opencv2/video/tracking.hpp"
+#include "opencv2/ml/ml.hpp"
+
+#ifdef __cplusplus
 
 namespace cv
 {
@@ -74,6 +79,7 @@ struct CvHybridTrackerParams
 
 	CvFeatureTrackerParams ft_params;
 	CvMeanShiftTrackerParams ms_params;
+	CvEMParams em_params;
 };
 
 class CvMeanShiftTracker
@@ -153,5 +159,7 @@ typedef CvMeanShiftTracker MeanShiftTracker;
 typedef CvFeatureTracker FeatureTracker;
 typedef CvHybridTracker HybridTracker;
 }
+
+#endif
 
 #endif

@@ -16,12 +16,12 @@ find_package ( OpenCV REQUIRED )
 
 set ( SRC
 main
-hybridtracker
-featuretracker
-colortracker
+src/hybridtracker
+src/featuretracker
+src/colortracker
 )
  
-include_directories ( ${OpenCV_INCLUDE_DIRS} )
+include_directories ( ${OpenCV_INCLUDE_DIRS} ${hytrack_SOURCE_DIR} ${hytrack_SOURCE_DIR}/include )
 link_directories ( ${OpenCV_LIB_DIRS} )
 add_executable (hytrack ${SRC})
 target_link_libraries (hytrack m ${OpenCV_LIBS} )

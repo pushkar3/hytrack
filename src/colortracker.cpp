@@ -39,7 +39,8 @@
 // the use of this software, even if advised of the possibility of such damage.
 //
 //M*/
-#include "hybridtracker.hpp"
+#include "precomp.hpp"
+#include "opencv2/tracker/hybridtracker.hpp"
 
 using namespace cv;
 
