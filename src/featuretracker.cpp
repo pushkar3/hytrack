@@ -44,19 +44,22 @@
 
 using namespace cv;
 
-CvFeatureTracker::CvFeatureTracker()
+CvFeatureTracker::CvFeatureTracker(CvFeatureTrackerParams params)
 {
-	detector = new SiftFeatureDetector(
-			SIFT::DetectorParams::GET_DEFAULT_THRESHOLD(),
-			SIFT::DetectorParams::GET_DEFAULT_EDGE_THRESHOLD(),
-			SIFT::CommonParams::AVERAGE_ANGLE);
-	// detector = new SurfFeatureDetector(400, 3, 4);
-
+	switch (params.feature_type)
+	{
+	case CvFeatureTrackerParams::SIFT:
+		detector = new SiftFeatureDetector(
+				SIFT::DetectorParams::GET_DEFAULT_THRESHOLD(),
+				SIFT::DetectorParams::GET_DEFAULT_EDGE_THRESHOLD(),
+				SIFT::CommonParams::AVERAGE_ANGLE);
+	case CvFeatureTrackerParams::SURF:
+		detector = new SurfFeatureDetector(400, 3, 4);
+	}
 
 	descriptor = new SurfDescriptorExtractor(3, 4, false);
 
 	matcher = new BruteForceMatcher<L2<float> > ();
-	// SSD matcher
 }
 
 

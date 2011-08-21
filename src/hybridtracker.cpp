@@ -46,10 +46,20 @@ using namespace cv;
 
 CvHybridTracker::CvHybridTracker()
 {
+
+}
+
+
+CvHybridTracker::CvHybridTracker(HybridTrackerParams params)
+{
+	mstracker = new CvMeanShiftTracker(params.ms_params);
+	fttracker = new CvFeatureTracker(params.ft_params);
 }
 
 CvHybridTracker::~CvHybridTracker()
 {
+	if(mstracker != NULL) delete mstracker;
+	if(fttracker != NULL) delete fttracker;
 }
 
 void CvHybridTracker::set(Mat image, Rect selection)
@@ -57,8 +67,8 @@ void CvHybridTracker::set(Mat image, Rect selection)
 	_size = image.size();
 	w_ms = 0.5;
 	w_ft = 0.5;
-	mstracker.init(image, selection);
-	fttracker.init(image, selection);
+	mstracker->init(image, selection);
+	fttracker->init(image, selection);
 
 	params.covs = NULL;
 	params.means = NULL;
@@ -130,34 +140,29 @@ Mat CvHybridTracker::getGaussianProjection(int ksize, double sigma,
 
 void CvHybridTracker::mergeTrackers(Mat image)
 {
-	mstracker.track(image);
-	fttracker.track(image);
-	Mat ms_backproj = mstracker.backproj;
+	mstracker->track(image);
+	fttracker->track(image);
+	Mat ms_backproj = mstracker->backproj;
 	Mat ms_backproj_f(_size, CV_64F);
 	ms_backproj.convertTo(ms_backproj_f, CV_64F);
-	Mat ms_distproj = getDistanceProjection(mstracker.center);
+	Mat ms_distproj = getDistanceProjection(mstracker->center);
 	Mat ms_proj = ms_backproj_f.mul(ms_distproj);
 
-	float dist_err = getL2Norm(mstracker.center, fttracker.center);
-	Mat ft_gaussproj = getGaussianProjection(dist_err, -1, fttracker.center);
-	Mat ft_distproj = getDistanceProjection(fttracker.center);
+	float dist_err = getL2Norm(mstracker->center, fttracker->center);
+	Mat ft_gaussproj = getGaussianProjection(dist_err, -1, fttracker->center);
+	Mat ft_distproj = getDistanceProjection(fttracker->center);
 	Mat ft_proj = ft_gaussproj.mul(ft_distproj);
 
 	Mat proj = w_ms * ms_proj + w_ft * ft_proj;
 
-	samples->data.fl[0] = mstracker.center.x;
-	samples->data.fl[1] = mstracker.center.y;
-	samples->data.fl[2] = fttracker.center.x;
-	samples->data.fl[3] = fttracker.center.y;
+	samples->data.fl[0] = mstracker->center.x;
+	samples->data.fl[1] = mstracker->center.y;
+	samples->data.fl[2] = fttracker->center.x;
+	samples->data.fl[3] = fttracker->center.y;
 
 	Mat cov = Mat::eye(2, 2, CV_64F);
 	cov *= dist_err;
 
 	em_model.train(samples, 0, params, labels);
 	center = em_model.getMeans().at<Point2d> (0);
-
-
-//	for (int i = 0; i < em_model.get_nclusters(); i++)
-//		cout << "Mean " << i << " is " << em_model.getMeans().at<double> (i, 0)
-//				<< ", " << em_model.getMeans().at<double> (i, 1) << endl;
 }

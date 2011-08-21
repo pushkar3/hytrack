@@ -1,1 +1,1 @@
-define_opencv_module(tracker opencv_core ml opencv_imgproc opencv_features2d opencv_flann)
+define_opencv_module(tracker opencv_core opencv_ml opencv_imgproc opencv_features2d opencv_flann)

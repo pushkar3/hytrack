@@ -17,7 +17,8 @@ Point origin;
 bool selectObject = false;
 int trackObject = 0;
 
-CvHybridTracker tracker;
+MeanShiftTrackerParams params;
+MeanShiftTracker tracker(params);
 
 void drawRectangle(Mat* image, Rect win) {
 	rectangle(*image, Point(win.x, win.y), Point(win.x + win.width, win.y
@@ -41,12 +42,12 @@ void onMouse(int event, int x, int y, int, void*) {
 		break;
 	case CV_EVENT_LBUTTONUP:
 		selectObject = false;
-		trackObject = 1;
-		tracker.set(image, selection);
+		trackObject = -1;
 		cout << "Init done" << endl;
 		break;
 	}
 }
+
 
 
 int main(int argc, char** argv) {
@@ -62,13 +63,20 @@ int main(int argc, char** argv) {
 		image = imread(img_file, CV_LOAD_IMAGE_COLOR);
 		if(image.data == NULL) continue;
 
+
 		if (!image.empty()) {
 
+			if(trackObject < 0) {
+				tracker.init(image, selection);
+				trackObject = 1;
+			}
+
 			if (trackObject) {
-				tracker.mergeTrackers(image);
-				selection.x = tracker.center.x;
-				selection.y = tracker.center.y;
-				drawRectangle(&image, selection);
+				ellipse( image, tracker.track(image), Scalar(0,0,255), 3, CV_AA );
+				//tracker.track(image);
+				//drawRectangle(&image, tracker.getTrackWindow());
+				//drawRectangle(&image, selection);
+				//imshow("projection", tracker.getHistogramProjection());
 			}
 
 			if (selectObject && selection.width > 0 && selection.height > 0) {

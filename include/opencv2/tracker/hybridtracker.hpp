@@ -51,23 +51,20 @@
 
 #ifdef __cplusplus
 
-namespace cv
-{
-
 struct CvMeanShiftTrackerParams
 {
-	CvMeanShiftTrackerParams();
+	CvMeanShiftTrackerParams() { };
 	CvTermCriteria term_crit;
 };
 
 struct CvFeatureTrackerParams
 {
-	enum
+	enum { SIFT = 0, SURF = 1 };
+	CvFeatureTrackerParams(int feature_type = 0, int window_size = 0)
 	{
-		SIFT = 0, SURF = 0
-	};
-	CvFeatureTrackerParams();
-	CvFeatureTrackerParams(int feature_type = 0, int window_size = 0);
+		feature_type = 0;
+		window_size = 0;
+	}
 
 	int feature_type;
 	int window_size;
@@ -75,28 +72,37 @@ struct CvFeatureTrackerParams
 
 struct CvHybridTrackerParams
 {
-	CvHybridTrackerParams();
+	CvHybridTrackerParams() { };
 
 	CvFeatureTrackerParams ft_params;
 	CvMeanShiftTrackerParams ms_params;
 	CvEMParams em_params;
 };
 
+namespace cv
+{
+
 class CvMeanShiftTracker
 {
+	CvMeanShiftTrackerParams params;
 public:
 	Mat hsv, hue;
 	Mat backproj;
 	Mat mask, maskroi;
 	MatND hist;
 	Rect trackwindow;
+	RotatedRect trackbox;
 
 	Point2d center;
 
 	CvMeanShiftTracker();
+	CvMeanShiftTracker(CvMeanShiftTrackerParams _params = CvMeanShiftTrackerParams());
 	~CvMeanShiftTracker();
 	void init(Mat image, Rect selection);
 	RotatedRect track(Mat image);
+	void setTrackWindow(Rect window);
+	Rect getTrackWindow();
+	Mat getHistogramProjection();
 };
 
 class CvFeatureTracker
@@ -119,6 +125,7 @@ public:
 	Point2d center;
 
 	CvFeatureTracker();
+	CvFeatureTracker(CvFeatureTrackerParams params = CvFeatureTrackerParams(0, 0));
 	~CvFeatureTracker();
 	void init(Mat image, Rect selection);
 	void setTrackWindow(Rect _window);
@@ -130,8 +137,8 @@ class CvHybridTracker
 public:
 	Size _size;
 
-	CvMeanShiftTracker mstracker;
-	CvFeatureTracker fttracker;
+	CvMeanShiftTracker* mstracker;
+	CvFeatureTracker* fttracker;
 
 	CvMat* samples;
 	CvMat* labels;
@@ -144,6 +151,7 @@ public:
 
 public:
 	CvHybridTracker();
+	CvHybridTracker(CvHybridTrackerParams params = CvHybridTrackerParams());
 	~CvHybridTracker();
 	void set(Mat image, Rect selection);
 	float getL2Norm(Point2d p1, Point2d p2);
