@@ -39,10 +39,14 @@
 // the use of this software, even if advised of the possibility of such damage.
 //
 //M*/
+#include <stdio.h>
+#include <iostream>
+#include <highgui.h>
 #include "precomp.hpp"
 #include "opencv2/tracker/hybridtracker.hpp"
 
 using namespace cv;
+using namespace std;
 
 CvHybridTracker::CvHybridTracker()
 {
@@ -68,7 +72,7 @@ void CvHybridTracker::set(Mat image, Rect selection)
 	w_ms = 0.5;
 	w_ft = 0.5;
 	mstracker->init(image, selection);
-	fttracker->init(image, selection);
+	//fttracker->init(image, selection);
 
 	params.covs = NULL;
 	params.means = NULL;
@@ -87,8 +91,7 @@ void CvHybridTracker::set(Mat image, Rect selection)
 
 float CvHybridTracker::getL2Norm(Point2d p1, Point2d p2)
 {
-	float distance = (p1.x - p2.x) * (p1.x - p2.x) + (p1.y - p2.y) * (p1.y
-			- p2.y);
+	float distance = (p1.x - p2.x) * (p1.x - p2.x) + (p1.y - p2.y) * (p1.y - p2.y);
 	return sqrt(distance);
 }
 
@@ -96,24 +99,18 @@ Mat CvHybridTracker::getDistanceProjection(Point2d center)
 {
 	Mat hist(_size, CV_64F);
 
-	float lu = getL2Norm(Point(0, 0), center);
-	float ru = getL2Norm(Point(0, _size.width), center);
-	float rd = getL2Norm(Point(_size.height, _size.width), center);
-	float ld = getL2Norm(Point(_size.height, 0), center);
+	double lu = getL2Norm(Point(0, 0), center);
+	double ru = getL2Norm(Point(0, _size.width), center);
+	double rd = getL2Norm(Point(_size.height, _size.width), center);
+	double ld = getL2Norm(Point(_size.height, 0), center);
 
-	float max = (lu < ru) ? lu : ru;
+	double max = (lu < ru) ? lu : ru;
 	max = (max < rd) ? max : rd;
 	max = (max < ld) ? max : ld;
 
 	for (int i = 0; i < hist.rows; i++)
-	{
 		for (int j = 0; j < hist.cols; j++)
-		{
-			hist.at<double> (i, j) = max - getL2Norm(Point(i, j), center);
-		}
-	}
-
-	normalize(hist, hist, 255, 0, NORM_L2);
+			hist.at<double> (i, j) = 1.0 - (getL2Norm(Point(i, j), center)/max);
 
 	return hist;
 }
@@ -141,7 +138,7 @@ Mat CvHybridTracker::getGaussianProjection(int ksize, double sigma,
 void CvHybridTracker::mergeTrackers(Mat image)
 {
 	mstracker->track(image);
-	fttracker->track(image);
+	//fttracker->track(image);
 	Mat ms_backproj = mstracker->backproj;
 	Mat ms_backproj_f(_size, CV_64F);
 	ms_backproj.convertTo(ms_backproj_f, CV_64F);
@@ -149,11 +146,16 @@ void CvHybridTracker::mergeTrackers(Mat image)
 	Mat ms_proj = ms_backproj_f.mul(ms_distproj);
 
 	float dist_err = getL2Norm(mstracker->center, fttracker->center);
-	Mat ft_gaussproj = getGaussianProjection(dist_err, -1, fttracker->center);
-	Mat ft_distproj = getDistanceProjection(fttracker->center);
-	Mat ft_proj = ft_gaussproj.mul(ft_distproj);
+//	Mat ft_gaussproj = getGaussianProjection(dist_err, -1, fttracker->center);
+//	Mat ft_distproj = getDistanceProjection(fttracker->center);
+//	Mat ft_proj = ft_gaussproj.mul(ft_distproj);
 
-	Mat proj = w_ms * ms_proj + w_ft * ft_proj;
+//	Mat proj = w_ms * ms_proj + w_ft * ft_proj;
+
+	imshow("ms_proj", ms_proj);
+	imshow("ms_distproj", ms_distproj);
+//	imshow("ft_gaussproj", ft_gaussproj);
+//	imshow("ft_distproj", ft_distproj);
 
 	samples->data.fl[0] = mstracker->center.x;
 	samples->data.fl[1] = mstracker->center.y;

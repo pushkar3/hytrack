@@ -17,9 +17,6 @@ Point origin;
 bool selectObject = false;
 int trackObject = 0;
 
-MeanShiftTrackerParams params;
-MeanShiftTracker tracker(params);
-
 void drawRectangle(Mat* image, Rect win) {
 	rectangle(*image, Point(win.x, win.y), Point(win.x + win.width, win.y
 			+ win.height), Scalar(0, 255, 0), 2, CV_AA);
@@ -52,6 +49,9 @@ void onMouse(int event, int x, int y, int, void*) {
 
 int main(int argc, char** argv) {
 
+	HybridTrackerParams params;
+	HybridTracker tracker(params);
+
 	char img_file[20] = "seqG/0001.png";
 	namedWindow("Win", 1);
 	setMouseCallback("Win", onMouse, 0);
@@ -67,12 +67,13 @@ int main(int argc, char** argv) {
 		if (!image.empty()) {
 
 			if(trackObject < 0) {
-				tracker.init(image, selection);
+				tracker.set(image, selection);
 				trackObject = 1;
 			}
 
 			if (trackObject) {
-				ellipse( image, tracker.track(image), Scalar(0,0,255), 3, CV_AA );
+				tracker.mergeTrackers(image);
+				//ellipse( image, tracker.track(image), Scalar(0,0,255), 3, CV_AA );
 				//tracker.track(image);
 				//drawRectangle(&image, tracker.getTrackWindow());
 				//drawRectangle(&image, selection);
