@@ -56,6 +56,7 @@ CvHybridTracker::CvHybridTracker()
 
 CvHybridTracker::CvHybridTracker(HybridTrackerParams params)
 {
+	params.ft_params.feature_type = CvFeatureTrackerParams::SIFT;
 	mstracker = new CvMeanShiftTracker(params.ms_params);
 	fttracker = new CvFeatureTracker(params.ft_params);
 }
@@ -72,7 +73,7 @@ void CvHybridTracker::set(Mat image, Rect selection)
 	w_ms = 0.5;
 	w_ft = 0.5;
 	mstracker->init(image, selection);
-	//fttracker->init(image, selection);
+	fttracker->init(image, selection);
 
 	params.covs = NULL;
 	params.means = NULL;
@@ -115,11 +116,10 @@ Mat CvHybridTracker::getDistanceProjection(Point2d center)
 	return hist;
 }
 
-Mat CvHybridTracker::getGaussianProjection(int ksize, double sigma,
-		Point2d center)
+Mat CvHybridTracker::getGaussianProjection(int ksize, double sigma,	Point2d center)
 {
 	Mat kernel = getGaussianKernel(ksize, sigma, CV_64F);
-	kernel *= (255.0f / kernel.at<double> (ksize / 2, 1));
+	double max = kernel.at<double> (ksize/2);
 
 	Mat hist(_size, CV_64F);
 	for (int i = 0; i < hist.rows; i++)
@@ -128,17 +128,18 @@ Mat CvHybridTracker::getGaussianProjection(int ksize, double sigma,
 		{
 			int pos = getL2Norm(Point(i, j), center);
 			if (pos < ksize / 2.0)
-				hist.at<double> (i, j) = 255 - kernel.at<double> (pos);
+				hist.at<double> (i, j) = 1.0 - (kernel.at<double> (pos)/max);
 		}
 	}
-	normalize(hist, hist, 255, 0, NORM_L2);
+
+
 	return hist;
 }
 
 void CvHybridTracker::mergeTrackers(Mat image)
 {
 	mstracker->track(image);
-	//fttracker->track(image);
+	fttracker->track(image);
 	Mat ms_backproj = mstracker->backproj;
 	Mat ms_backproj_f(_size, CV_64F);
 	ms_backproj.convertTo(ms_backproj_f, CV_64F);
@@ -146,25 +147,22 @@ void CvHybridTracker::mergeTrackers(Mat image)
 	Mat ms_proj = ms_backproj_f.mul(ms_distproj);
 
 	float dist_err = getL2Norm(mstracker->center, fttracker->center);
-//	Mat ft_gaussproj = getGaussianProjection(dist_err, -1, fttracker->center);
-//	Mat ft_distproj = getDistanceProjection(fttracker->center);
-//	Mat ft_proj = ft_gaussproj.mul(ft_distproj);
+	Mat ft_gaussproj = getGaussianProjection(dist_err, -1, fttracker->center);
+	Mat ft_distproj = getDistanceProjection(fttracker->center);
+	Mat ft_proj = ft_gaussproj.mul(ft_distproj);
 
-//	Mat proj = w_ms * ms_proj + w_ft * ft_proj;
+	Mat proj = w_ms * ms_proj + w_ft * ft_proj;
 
-	imshow("ms_proj", ms_proj);
-	imshow("ms_distproj", ms_distproj);
+//	imshow("ms_proj", ms_proj);
+//	imshow("ms_distproj", ms_distproj);
 //	imshow("ft_gaussproj", ft_gaussproj);
-//	imshow("ft_distproj", ft_distproj);
+	imshow("ft_distproj", ft_distproj);
 
-	samples->data.fl[0] = mstracker->center.x;
-	samples->data.fl[1] = mstracker->center.y;
-	samples->data.fl[2] = fttracker->center.x;
-	samples->data.fl[3] = fttracker->center.y;
-
-	Mat cov = Mat::eye(2, 2, CV_64F);
-	cov *= dist_err;
-
-	em_model.train(samples, 0, params, labels);
-	center = em_model.getMeans().at<Point2d> (0);
+//	samples->data.fl[0] = mstracker->center.x;
+//	samples->data.fl[1] = mstracker->center.y;
+//	samples->data.fl[2] = fttracker->center.x;
+//	samples->data.fl[3] = fttracker->center.y;
+//
+//	em_model.train(samples, 0, params, labels);
+//	center = em_model.getMeans().at<Point2d> (0);
 }

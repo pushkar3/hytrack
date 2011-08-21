@@ -39,6 +39,9 @@
 // the use of this software, even if advised of the possibility of such damage.
 //
 //M*/
+#include <stdio.h>
+#include <iostream>
+#include <highgui.h>
 #include "precomp.hpp"
 #include "opencv2/tracker/hybridtracker.hpp"
 
@@ -81,9 +84,7 @@ void CvFeatureTracker::init(Mat image, Rect selection)
 	detector->detect(prev_image, prev_keypoints, mask);
 
 	if (prev_keypoints.size() > 0)
-	{
 		descriptor->compute(prev_image, prev_keypoints, prev_desc);
-	}
 }
 
 void CvFeatureTracker::setTrackWindow(Rect _window)
@@ -133,6 +134,8 @@ Rect CvFeatureTracker::track(Mat image)
 		trackWindow.y += (p0.y - n0.y);
 	}
 
+	center.x = trackWindow.x;
+	center.y = trackWindow.y;
 	return trackWindow;
 }
 
