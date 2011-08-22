@@ -53,71 +53,76 @@ CvMeanShiftTracker::~CvMeanShiftTracker()
 {
 }
 
-void CvMeanShiftTracker::init(Mat image, Rect selection)
+void CvMeanShiftTracker::newTrackingWindow(Mat image, Rect selection)
 {
-
 	hist.release();
 	int histSize = 32;
-	int channels[] = { 0, 0 };
+	int channels[] = { 0, 0 , 1, 1};
 	float hrange[] = { 0, 180 };
-	const float* ranges = hrange;
+	float srange[] = { 0, 1 };
+ 	const float* ranges[] = {hrange, srange};
 
 	cvtColor(image, hsv, CV_BGR2HSV);
 	inRange(hsv, Scalar(0, 30, MIN(10, 256)), Scalar(180, 256, MAX(10, 256)), mask);
 
-	hue.create(hsv.size(), hsv.depth());
-	mixChannels(&hsv, 1, &hue, 1, channels, 1);
+	hue.create(hsv.size(), CV_8UC2);
+	mixChannels(&hsv, 1, &hue, 1, channels, 2);
 
 	Mat roi(hue, selection);
 	Mat maskroi(mask, selection);
-	calcHist(&roi, 1, 0, maskroi, hist, 1, &histSize, &ranges);
+	int ch[] = {0, 1};
+	int chsize[] = {32, 32};
+	calcHist(&roi, 1, ch, maskroi, hist, 1, chsize, ranges);
 	normalize(hist, hist, 0, 255, CV_MINMAX);
 
-	trackwindow = selection;
+	prev_trackwindow = selection;
 }
 
-RotatedRect CvMeanShiftTracker::track(Mat image)
+RotatedRect CvMeanShiftTracker::updateTrackingWindow(Mat image)
 {
-	if(trackwindow.width
-				< 0 || trackwindow.height < 0) {
-		return trackbox;
-	}
-
-	int channels[] = { 0, 0 };
+	int channels[] = { 0, 0 , 1, 1};
 	float hrange[] = { 0, 180 };
-	const float* ranges = hrange;
+	float srange[] = { 0, 1 };
+	const float* ranges[] = {hrange, srange};
 
 	cvtColor(image, hsv, CV_BGR2HSV);
 	inRange(hsv, Scalar(0, 30, MIN(10, 256)), Scalar(180, 256, MAX(10, 256)), mask);
-	hue.create(hsv.size(), hsv.depth());
-	mixChannels(&hsv, 1, &hue, 1, channels, 1);
-	calcBackProject(&hue, 1, 0, hist, backproj, &ranges);
+	hue.create(hsv.size(), CV_8UC2);
+	mixChannels(&hsv, 1, &hue, 1, channels, 2);
+	int ch[] = {0, 1};
+	calcBackProject(&hue, 1, ch, hist, backproj, ranges);
 	backproj &= mask;
-	// meanShift(backproj, trackwindow, TermCriteria(CV_TERMCRIT_EPS | CV_TERMCRIT_ITER, 10, 1));
-	//printf("%d, %d: %d, %d\n", trackwindow.x, trackwindow.y, trackwindow.width, trackwindow.height);
-	trackbox = CamShift(backproj, trackwindow, TermCriteria(
-			CV_TERMCRIT_EPS | CV_TERMCRIT_ITER, 10, 1));
+	prev_trackbox = CamShift(backproj, prev_trackwindow, TermCriteria(CV_TERMCRIT_EPS | CV_TERMCRIT_ITER, 10, 1));
 	int cols = backproj.cols, rows = backproj.rows, r = (MIN(cols, rows) + 5) / 6;
-	trackwindow = Rect(trackwindow.x - r, trackwindow.y - r, trackwindow.x + r,
-			trackwindow.y + r) & Rect(0, 0, cols, rows);
+	prev_trackwindow = Rect(prev_trackwindow.x - r, prev_trackwindow.y - r, prev_trackwindow.x + r,
+			prev_trackwindow.y + r) & Rect(0, 0, cols, rows);
 
-	center.x = trackwindow.x + trackwindow.width / 2;
-	center.y = trackwindow.y + trackwindow.height / 2;
+	prev_center.x = prev_trackwindow.x + prev_trackwindow.width / 2;
+	prev_center.y = prev_trackwindow.y + prev_trackwindow.height / 2;
 
-	return trackbox;
+	return prev_trackbox;
 }
 
-void CvMeanShiftTracker::setTrackWindow(Rect window)
+Mat CvMeanShiftTracker::getHistogramProjection(int type)
 {
-	trackwindow = window;
+	Mat ms_backproj_f(backproj.size(), type);
+	backproj.convertTo(ms_backproj_f, type);
+	return ms_backproj_f;
 }
 
-Rect CvMeanShiftTracker::getTrackWindow()
+void CvMeanShiftTracker::setTrackingWindow(Rect window)
 {
-	return trackwindow;
+	prev_trackwindow = window;
 }
 
-Mat CvMeanShiftTracker::getHistogramProjection()
+Rect CvMeanShiftTracker::getTrackingWindow()
 {
-	return backproj;
+	return prev_trackwindow;
 }
+
+Point2f CvMeanShiftTracker::getTrackingCenter()
+{
+	return prev_center;
+}
+
+

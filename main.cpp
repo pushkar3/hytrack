@@ -67,12 +67,12 @@ int main(int argc, char** argv) {
 		if (!image.empty()) {
 
 			if(trackObject < 0) {
-				tracker.set(image, selection);
+				tracker.newTracker(image, selection);
 				trackObject = 1;
 			}
 
 			if (trackObject) {
-				tracker.mergeTrackers(image);
+				tracker.updateTracker(image);
 				//ellipse( image, tracker.track(image), Scalar(0,0,255), 3, CV_AA );
 				//tracker.track(image);
 				//drawRectangle(&image, tracker.getTrackWindow());

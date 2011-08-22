@@ -44,6 +44,7 @@
 #define __OPENCV_HYBRIDTRACKER_H_
 
 #include "opencv2/core/core.hpp"
+#include "opencv2/core/operations.hpp"
 #include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/features2d/features2d.hpp"
 #include "opencv2/video/tracking.hpp"
@@ -51,60 +52,102 @@
 
 #ifdef __cplusplus
 
+namespace cv
+{
+
+// Motion model for tracking algorithm. Currently supports objects that do not move much.
+// To add Kalman filter
+struct CvMotionModel
+{
+	enum {LOW_PASS_FILTER = 0, KALMAN_FILTER = 1, EM = 2};
+	CvMotionModel(int model = LOW_PASS_FILTER, float low_pass_gain = 0.1)
+	{
+	}
+
+	CvMotionModel(int model = EM, CvEMParams em_params = CvEMParams())
+	{
+	}
+
+	float low_pass_gain; 	// low pass gain
+	CvEMParams em_params;	// EM parameters
+};
+
+// Mean Shift Tracker parameters for specifying use of HSV channel and CamShift parameters.
 struct CvMeanShiftTrackerParams
 {
-	CvMeanShiftTrackerParams() { };
+	enum {	H = 0, HS = 1, HSV = 2	};
+	CvMeanShiftTrackerParams(int tracking_type = CvMeanShiftTrackerParams::HS,
+			CvTermCriteria term_crit = CvTermCriteria())
+	{
+	}
+
+	int tracking_type;
+	float h_range[];
+	float s_range[];
+	float v_range[];
 	CvTermCriteria term_crit;
 };
 
+// Feature tracking parameters
 struct CvFeatureTrackerParams
 {
-	enum { SIFT = 0, SURF = 1 };
+	enum {	SIFT = 0, SURF = 1	};
 	CvFeatureTrackerParams(int feature_type = 0, int window_size = 0)
 	{
 		feature_type = 0;
 		window_size = 0;
 	}
 
-	int feature_type;
-	int window_size;
+	int feature_type; // Feature type to use
+	int window_size; // Window size in pixels around which to search for new window
 };
 
+// Hybrid Tracking parameters for specifying weights of individual trackers and motion model.
 struct CvHybridTrackerParams
 {
-	CvHybridTrackerParams() { };
+	CvHybridTrackerParams(float ft_tracker_weight = 0.5, float ms_tracker_weight = 0.5,
+			CvFeatureTrackerParams ft_params = CvFeatureTrackerParams(),
+			CvMeanShiftTrackerParams ms_params = CvMeanShiftTrackerParams(),
+			CvMotionModel model = CvMotionModel(CvMotionModel::LOW_PASS_FILTER, 0.1))
+	{
+	}
 
+	float ft_tracker_weight;
+	float ms_tracker_weight;
 	CvFeatureTrackerParams ft_params;
 	CvMeanShiftTrackerParams ms_params;
 	CvEMParams em_params;
+	int motion_model;
+	float low_pass_gain;
 };
 
-namespace cv
-{
-
+// Performs Camshift using parameters from MeanShiftTrackerParams
 class CvMeanShiftTracker
 {
-	CvMeanShiftTrackerParams params;
-public:
+private:
 	Mat hsv, hue;
 	Mat backproj;
 	Mat mask, maskroi;
 	MatND hist;
-	Rect trackwindow;
-	RotatedRect trackbox;
+	Rect prev_trackwindow;
+	RotatedRect prev_trackbox;
+	Point2d prev_center;
 
-	Point2d center;
+public:
+	CvMeanShiftTrackerParams params;
 
 	CvMeanShiftTracker();
 	CvMeanShiftTracker(CvMeanShiftTrackerParams _params = CvMeanShiftTrackerParams());
 	~CvMeanShiftTracker();
-	void init(Mat image, Rect selection);
-	RotatedRect track(Mat image);
-	void setTrackWindow(Rect window);
-	Rect getTrackWindow();
-	Mat getHistogramProjection();
+	void newTrackingWindow(Mat image, Rect selection);
+	RotatedRect updateTrackingWindow(Mat image);
+	Mat getHistogramProjection(int type);
+	void setTrackingWindow(Rect _window);
+	Rect getTrackingWindow();
+	Point2f getTrackingCenter();
 };
 
+// Performs SIFT/SURF feature tracking using parameters from FeatureTrackerParams
 class CvFeatureTracker
 {
 private:
@@ -117,49 +160,53 @@ private:
 	vector<Mat> prev_desc_vector;
 	vector<KeyPoint> prev_keypoints;
 	Mat prev_desc;
-
-	Rect trackWindow;
+	Rect prev_trackwindow;
+	Point2d prev_center;
 
 public:
-
-	Point2d center;
+	CvFeatureTrackerParams params;
 
 	CvFeatureTracker();
-	CvFeatureTracker(CvFeatureTrackerParams params = CvFeatureTrackerParams(0, 0));
+	CvFeatureTracker(CvFeatureTrackerParams params = CvFeatureTrackerParams(0,0));
 	~CvFeatureTracker();
-	void init(Mat image, Rect selection);
-	void setTrackWindow(Rect _window);
-	Rect track(Mat image);
+	void newTrackingWindow(Mat image, Rect selection);
+	Rect updateTrackingWindow(Mat image);
+	void setTrackingWindow(Rect _window);
+	Rect getTrackingWindow();
+	Point2f getTrackingCenter();
 };
 
+// Performs Hybrid Tracking and combines individual trackers using EM or filters
 class CvHybridTracker
 {
-public:
-	Size _size;
-
+private:
 	CvMeanShiftTracker* mstracker;
 	CvFeatureTracker* fttracker;
 
 	CvMat* samples;
 	CvMat* labels;
 	CvEM em_model;
-	CvEMParams params;
 
-	Point2d center;
+	Point2d prev_center;
+	Mat prev_proj;
 
-	int w_ms, w_ft;
+	inline float getL2Norm(Point2d p1, Point2d p2);
+	Mat getDistanceProjection(Mat image, Point2d center);
+	Mat getGaussianProjection(Mat image, int ksize, double sigma, Point2d center);
+	void updateTrackerWithEM(Mat image);
+	void updateTrackerWithLowPassFilter(Mat image);
 
 public:
+	CvHybridTrackerParams params;
 	CvHybridTracker();
 	CvHybridTracker(CvHybridTrackerParams params = CvHybridTrackerParams());
 	~CvHybridTracker();
-	void set(Mat image, Rect selection);
-	float getL2Norm(Point2d p1, Point2d p2);
-	Mat getDistanceProjection(Point2d center);
-	Mat getGaussianProjection(int ksize, double sigma, Point2d center);
-	void mergeTrackers(Mat image);
+
+	void newTracker(Mat image, Rect selection);
+	void updateTracker(Mat image);
 };
 
+typedef CvMotionModel MotionModel;
 typedef CvMeanShiftTrackerParams MeanShiftTrackerParams;
 typedef CvFeatureTrackerParams FeatureTrackerParams;
 typedef CvHybridTrackerParams HybridTrackerParams;

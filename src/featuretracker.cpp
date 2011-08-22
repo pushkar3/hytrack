@@ -39,15 +39,12 @@
 // the use of this software, even if advised of the possibility of such damage.
 //
 //M*/
-#include <stdio.h>
-#include <iostream>
-#include <highgui.h>
 #include "precomp.hpp"
 #include "opencv2/tracker/hybridtracker.hpp"
 
 using namespace cv;
 
-CvFeatureTracker::CvFeatureTracker(CvFeatureTrackerParams params)
+CvFeatureTracker::CvFeatureTracker(CvFeatureTrackerParams _params) : params(_params)
 {
 	switch (params.feature_type)
 	{
@@ -70,14 +67,14 @@ CvFeatureTracker::~CvFeatureTracker()
 {
 }
 
-void CvFeatureTracker::init(Mat image, Rect selection)
+void CvFeatureTracker::newTrackingWindow(Mat image, Rect selection)
 {
-	trackWindow = selection;
+	prev_trackwindow = selection;
 	prev_image = image;
 
 	Mat mask = Mat::zeros(image.size(), CV_8UC1);
-	rectangle(mask, Point(trackWindow.x, trackWindow.y), Point(trackWindow.x
-			+ trackWindow.width, trackWindow.y + trackWindow.height), Scalar(
+	rectangle(mask, Point(prev_trackwindow.x, prev_trackwindow.y), Point(prev_trackwindow.x
+			+ prev_trackwindow.width, prev_trackwindow.y + prev_trackwindow.height), Scalar(
 			255), CV_FILLED);
 
 	prev_desc_vector.clear();
@@ -87,21 +84,16 @@ void CvFeatureTracker::init(Mat image, Rect selection)
 		descriptor->compute(prev_image, prev_keypoints, prev_desc);
 }
 
-void CvFeatureTracker::setTrackWindow(Rect _window)
+Rect CvFeatureTracker::updateTrackingWindow(Mat image)
 {
-	trackWindow = _window;
-}
-
-Rect CvFeatureTracker::track(Mat image)
-{
-	init(prev_image, trackWindow);
+	newTrackingWindow(prev_image, prev_trackwindow);
 
 	vector<KeyPoint> current_keypoints;
 	Mat current_desc;
 
-	int windowSize = 10;
-	Rect window(trackWindow.x - windowSize, trackWindow.y - windowSize,
-			trackWindow.width + windowSize, trackWindow.height + windowSize);
+	int windowSize = params.window_size;
+	Rect window(prev_trackwindow.x - windowSize, prev_trackwindow.y - windowSize,
+			prev_trackwindow.width + windowSize, prev_trackwindow.height + windowSize);
 
 	Mat mask = Mat::zeros(image.size(), CV_8UC1);
 	rectangle(mask, Point(window.x, window.y), Point(window.x + window.width,
@@ -123,19 +115,33 @@ Rect CvFeatureTracker::track(Mat image)
 
 		double dp = sqrt((p0.x - p1.x)*(p0.x - p1.x) + (p0.y - p1.y)*(p0.y - p1.y));
 		double dn = sqrt((n0.x - n1.x)*(n0.x - n1.x) + (n0.y - n1.y)*(n0.y - n1.y));
-		printf("scale: %lf, %lf\n", dn, dp);
+
 		double scale = dn/dp;
-		trackWindow.width *= scale;
-		trackWindow.height *= scale;
+		prev_trackwindow.width *= scale;
+		prev_trackwindow.height *= scale;
 #endif
 
-
-		trackWindow.x += (p0.x - n0.x);
-		trackWindow.y += (p0.y - n0.y);
+		prev_trackwindow.x += (p0.x - n0.x);
+		prev_trackwindow.y += (p0.y - n0.y);
 	}
 
-	center.x = trackWindow.x;
-	center.y = trackWindow.y;
-	return trackWindow;
+	prev_center.x = prev_trackwindow.x;
+	prev_center.y = prev_trackwindow.y;
+	return prev_trackwindow;
 }
 
+void CvFeatureTracker::setTrackingWindow(Rect _window)
+{
+	prev_trackwindow = _window;
+}
+
+Rect CvFeatureTracker::getTrackingWindow()
+{
+	return prev_trackwindow;
+}
+
+
+Point2f CvFeatureTracker::getTrackingCenter()
+{
+	return prev_center;
+}
