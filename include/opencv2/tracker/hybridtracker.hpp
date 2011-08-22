@@ -144,6 +144,7 @@ public:
 	Mat getHistogramProjection(int type);
 	void setTrackingWindow(Rect _window);
 	Rect getTrackingWindow();
+	RotatedRect getTrackingEllipse();
 	Point2f getTrackingCenter();
 };
 
@@ -187,8 +188,10 @@ private:
 	CvMat* labels;
 	CvEM em_model;
 
+	Rect prev_window;
 	Point2d prev_center;
 	Mat prev_proj;
+	RotatedRect trackbox;
 
 	inline float getL2Norm(Point2d p1, Point2d p2);
 	Mat getDistanceProjection(Mat image, Point2d center);
@@ -204,6 +207,7 @@ public:
 
 	void newTracker(Mat image, Rect selection);
 	void updateTracker(Mat image);
+	Rect getTrackingWindow();
 };
 
 typedef CvMotionModel MotionModel;

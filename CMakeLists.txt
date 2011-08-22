@@ -15,7 +15,7 @@ set(CMAKE_C_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wl,--no-undefined -fopenmp")
 find_package ( OpenCV REQUIRED )
 
 set ( SRC
-main
+hybridtrackingsample
 src/hybridtracker
 src/featuretracker
 src/colortracker

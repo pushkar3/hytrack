@@ -120,6 +120,11 @@ Rect CvMeanShiftTracker::getTrackingWindow()
 	return prev_trackwindow;
 }
 
+RotatedRect CvMeanShiftTracker::getTrackingEllipse()
+{
+	return prev_trackbox;
+}
+
 Point2f CvMeanShiftTracker::getTrackingCenter()
 {
 	return prev_center;

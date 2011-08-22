@@ -17,13 +17,16 @@ Point origin;
 bool selectObject = false;
 int trackObject = 0;
 
-void drawRectangle(Mat* image, Rect win) {
+void drawRectangle(Mat* image, Rect win)
+{
 	rectangle(*image, Point(win.x, win.y), Point(win.x + win.width, win.y
 			+ win.height), Scalar(0, 255, 0), 2, CV_AA);
 }
 
-void onMouse(int event, int x, int y, int, void*) {
-	if (selectObject) {
+void onMouse(int event, int x, int y, int, void*)
+{
+	if (selectObject)
+	{
 		selection.x = MIN(x, origin.x);
 		selection.y = MIN(y, origin.y);
 		selection.width = std::abs(x - origin.x);
@@ -31,7 +34,8 @@ void onMouse(int event, int x, int y, int, void*) {
 		selection &= Rect(0, 0, image.cols, image.rows);
 	}
 
-	switch (event) {
+	switch (event)
+	{
 	case CV_EVENT_LBUTTONDOWN:
 		origin = Point(x, y);
 		selection = Rect(x, y, 0, 0);
@@ -45,59 +49,73 @@ void onMouse(int event, int x, int y, int, void*) {
 	}
 }
 
+int main(int argc, char** argv)
+{
 
+	VideoCapture cap;
 
-int main(int argc, char** argv) {
+	cap.open(1);
+	if (!cap.isOpened())
+	{
+		cout << "Failed to open camera" << endl;
+		return 0;
+	}
+	cout << "Opened camera" << endl;
+	cap >> image;
 
 	HybridTrackerParams params;
-	HybridTracker tracker(params);
+	// motion model params
+	params.motion_model = CvMotionModel::LOW_PASS_FILTER;
+	params.low_pass_gain = 0.1;
+	// mean shift params
+	params.ms_tracker_weight = 0.8;
+	params.ms_params.tracking_type = CvMeanShiftTrackerParams::HS;
+	// feature tracking params
+	params.ft_tracker_weight = 0.2;
+	params.ft_params.feature_type = CvFeatureTrackerParams::SIFT;
+	params.ft_params.window_size = 30;
 
-	char img_file[20] = "seqG/0001.png";
+	HybridTracker tracker(params);
 	namedWindow("Win", 1);
 	setMouseCallback("Win", onMouse, 0);
 
+	for (int i = 0; i < 1000; i++)
+	{
 
-	for (int i = 0; i < 1000; i++) {
+		cap >> image;
+		if (image.data == NULL)
+			continue;
 
-		sprintf(img_file, "seqG/%04d.png", i);
-		image = imread(img_file, CV_LOAD_IMAGE_COLOR);
-		if(image.data == NULL) continue;
+		if (!image.empty())
+		{
 
-
-		if (!image.empty()) {
-
-			if(trackObject < 0) {
+			if (trackObject < 0)
+			{
 				tracker.newTracker(image, selection);
 				trackObject = 1;
 			}
 
-			if (trackObject) {
+			if (trackObject)
+			{
 				tracker.updateTracker(image);
-				//ellipse( image, tracker.track(image), Scalar(0,0,255), 3, CV_AA );
-				//tracker.track(image);
-				//drawRectangle(&image, tracker.getTrackWindow());
-				//drawRectangle(&image, selection);
-				//imshow("projection", tracker.getHistogramProjection());
+				drawRectangle(&image, tracker.getTrackingWindow());
 			}
 
-			if (selectObject && selection.width > 0 && selection.height > 0) {
+			if (selectObject && selection.width > 0 && selection.height > 0)
+			{
 				Mat roi(image, selection);
 				bitwise_not(roi, roi);
 			}
 
-			putText(image, "Hybrid Tracker", Point(20, 20),
-					FONT_HERSHEY_SIMPLEX, 0.5f, Scalar(255, 255, 255));
-
-			sprintf(img_file, "out/%04d.png", i);
-			imwrite(img_file, image);
 			imshow("Win", image);
 
 			waitKey(30);
-		} else
+		}
+		else
 			i = 0;
 	}
 
-return 0;
+	return 0;
 
 }
 

@@ -111,7 +111,8 @@ Mat CvHybridTracker::getGaussianProjection(Mat image, int ksize, double sigma,	P
 void CvHybridTracker::newTracker(Mat image, Rect selection)
 {
 	prev_proj = Mat::zeros(image.size(), CV_64FC1);
-	prev_center = Point2f(0, 0);
+	prev_center = Point2f(selection.x+selection.width/2.0, selection.y+selection.height/2.0);
+	prev_window = selection;
 
 	mstracker->newTrackingWindow(image, selection);
 	fttracker->newTrackingWindow(image, selection);
@@ -133,16 +134,20 @@ void CvHybridTracker::newTracker(Mat image, Rect selection)
 
 void CvHybridTracker::updateTracker(Mat image)
 {
-	if (params.motion_model = CvMotionModel::EM)
-		updateTrackerWithEM(image);
-	else
-		updateTrackerWithLowPassFilter(image);
+	mstracker->updateTrackingWindow(image);
+	fttracker->updateTrackingWindow(image);
+
+//	if (params.motion_model = CvMotionModel::EM)
+//		updateTrackerWithEM(image);
+//	else
+	updateTrackerWithLowPassFilter(image);
+
+	mstracker->setTrackingWindow(prev_window);
+	fttracker->setTrackingWindow(prev_window);
 }
 
 void CvHybridTracker::updateTrackerWithEM(Mat image)
 {
-	mstracker->updateTrackingWindow(image);
-	fttracker->updateTrackingWindow(image);
 	Mat ms_backproj = mstracker->getHistogramProjection(CV_64F);
 	Mat ms_distproj = getDistanceProjection(image, mstracker->getTrackingCenter());
 	Mat ms_proj = ms_backproj.mul(ms_distproj);
@@ -175,43 +180,29 @@ void CvHybridTracker::updateTrackerWithEM(Mat image)
 	Point2f center = em_model.getMeans().at<Point2d> (0);
 	prev_proj = proj;
 	prev_center = center;
+	prev_window.x = center.x;
+	prev_window.y = center.y;
 }
 
 void CvHybridTracker::updateTrackerWithLowPassFilter(Mat image)
 {
-	mstracker->updateTrackingWindow(image);
-	fttracker->updateTrackingWindow(image);
-	Mat ms_backproj = mstracker->getHistogramProjection(CV_64F);
-	Mat ms_distproj = getDistanceProjection(image, mstracker->getTrackingCenter());
-	Mat ms_proj = ms_backproj.mul(ms_distproj);
+	RotatedRect ms_track = mstracker->getTrackingEllipse();
+	Point2f ft_center = fttracker->getTrackingCenter();
 
-	float dist_err = getL2Norm(mstracker->getTrackingCenter(), fttracker->getTrackingCenter());
-	Mat ft_gaussproj = getGaussianProjection(image, dist_err, -1, fttracker->getTrackingCenter());
-	Mat ft_distproj = getDistanceProjection(image, fttracker->getTrackingCenter());
-	Mat ft_proj = ft_gaussproj.mul(ft_distproj);
+	trackbox = ms_track;
+	trackbox.center.x *= params.ms_tracker_weight*trackbox.center.x + params.ft_tracker_weight*ft_center.x;
+	trackbox.center.y *= params.ms_tracker_weight*trackbox.center.y + params.ft_tracker_weight*ft_center.y;
 
-	Mat proj = params.ms_tracker_weight * ms_proj + params.ft_tracker_weight * ft_proj + prev_proj;
-	int sample_count = countNonZero(proj);
-	if(samples != NULL) cvReleaseMat(&samples);
-	samples = cvCreateMat(2, sample_count, CV_32FC1);
+	float a = params.low_pass_gain;
+	trackbox.center.x *= a*trackbox.center.x + (1.0-a)*prev_center.x;
+	trackbox.center.y *= a*trackbox.center.y + (1.0-a)*prev_center.y;
 
-	int count = 0;
-	for (int i = 0; i < proj.rows; i++)
-		for (int j = 0; j < proj.cols; j++)
-			if (proj.at<double> (i, j) > 0)
-			{
-				samples->data.fl[count * 2] = i;
-				samples->data.fl[count * 2 + 1] = j;
-				count++;
-			}
+	prev_window.x = trackbox.center.x - prev_window.width/2.0;
+	prev_window.y = trackbox.center.y - prev_window.height/2.0;
+}
 
-	params.em_params.means = em_model.get_means();
-	params.em_params.covs = (const CvMat**) em_model.get_covs();
-	params.em_params.weights = em_model.get_weights();
-
-	em_model.train(samples, 0, params.em_params, labels);
-	Point2f center = em_model.getMeans().at<Point2d> (0);
-	prev_proj = proj;
-	prev_center = center;
+Rect CvHybridTracker::getTrackingWindow()
+{
+	return prev_window;
 }
 
