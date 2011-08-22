@@ -56,7 +56,6 @@ CvMeanShiftTracker::~CvMeanShiftTracker()
 void CvMeanShiftTracker::newTrackingWindow(Mat image, Rect selection)
 {
 	hist.release();
-	int histSize = 32;
 	int channels[] = { 0, 0 , 1, 1};
 	float hrange[] = { 0, 180 };
 	float srange[] = { 0, 1 };
