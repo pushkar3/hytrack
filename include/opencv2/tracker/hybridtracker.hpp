@@ -158,13 +158,11 @@ private:
 	vector<DMatch> matches;
 
 	Mat prev_image;
-	vector<Mat> prev_desc_vector;
-	vector<KeyPoint> prev_keypoints;
-	Mat prev_desc;
 	Rect prev_trackwindow;
 	Point2d prev_center;
 
 public:
+	Mat disp_matches;
 	CvFeatureTrackerParams params;
 
 	CvFeatureTracker();

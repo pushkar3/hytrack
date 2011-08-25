@@ -122,13 +122,13 @@ void CvHybridTracker::newTracker(Mat image, Rect selection)
 	params.em_params.probs = NULL;
 	params.em_params.nclusters = 1;
 	params.em_params.weights = NULL;
-	params.em_params.cov_mat_type = CvEM::COV_MAT_DIAGONAL;
+	params.em_params.cov_mat_type = CvEM::COV_MAT_SPHERICAL;
 	params.em_params.start_step = CvEM::START_AUTO_STEP;
-	params.em_params.term_crit.max_iter = 10;
-	params.em_params.term_crit.epsilon = 0.1;
+	params.em_params.term_crit.max_iter = 10000;
+	params.em_params.term_crit.epsilon = 0.001;
 	params.em_params.term_crit.type = CV_TERMCRIT_ITER | CV_TERMCRIT_EPS;
 
-	samples = cvCreateMat(2, 10, CV_32FC1);
+	samples = cvCreateMat(2, 1, CV_32FC1);
 	labels = cvCreateMat(2, 1, CV_32SC1);
 }
 
@@ -138,9 +138,9 @@ void CvHybridTracker::updateTracker(Mat image)
 	fttracker->updateTrackingWindow(image);
 
 //	if (params.motion_model = CvMotionModel::EM)
-//		updateTrackerWithEM(image);
+		updateTrackerWithEM(image);
 //	else
-	updateTrackerWithLowPassFilter(image);
+		//updateTrackerWithLowPassFilter(image);
 
 	mstracker->setTrackingWindow(prev_window);
 	fttracker->setTrackingWindow(prev_window);
@@ -159,29 +159,44 @@ void CvHybridTracker::updateTrackerWithEM(Mat image)
 
 	Mat proj = params.ms_tracker_weight * ms_proj + params.ft_tracker_weight * ft_proj + prev_proj;
 	int sample_count = countNonZero(proj);
-	if(samples != NULL) cvReleaseMat(&samples);
-	samples = cvCreateMat(2, sample_count, CV_32FC1);
+	cvReleaseMat(&samples);
+	cvReleaseMat(&labels);
+	samples = cvCreateMat(sample_count, 2, CV_32FC1);
+	labels = cvCreateMat(sample_count, 1, CV_32SC1);
 
+	double x = 0;
+	double y  = 0;
 	int count = 0;
 	for (int i = 0; i < proj.rows; i++)
 		for (int j = 0; j < proj.cols; j++)
 			if (proj.at<double> (i, j) > 0)
 			{
+				x+=i;
+				y+=j;
 				samples->data.fl[count * 2] = i;
 				samples->data.fl[count * 2 + 1] = j;
 				count++;
 			}
 
-	params.em_params.means = em_model.get_means();
-	params.em_params.covs = (const CvMat**) em_model.get_covs();
-	params.em_params.weights = em_model.get_weights();
+	x/=sample_count;
+	y/=sample_count;
+
+//	params.em_params.means = em_model.get_means();
+//	params.em_params.covs = (const CvMat**) em_model.get_covs();
+//	params.em_params.weights = em_model.get_weights();
+
+	imshow("proj", proj);
 
 	em_model.train(samples, 0, params.em_params, labels);
-	Point2f center = em_model.getMeans().at<Point2d> (0);
+
+	printf("center is %lf, %lf\n", em_model.getMeans().at<double>(0, 0), em_model.getMeans().at<double>(0, 1));
+
 	prev_proj = proj;
-	prev_center = center;
-	prev_window.x = center.x;
-	prev_window.y = center.y;
+	prev_center.x = em_model.getMeans().at<double>(0, 0);
+	prev_center.y = em_model.getMeans().at<double>(0, 1);
+	prev_window.x = x;
+	prev_window.y = y;
+
 }
 
 void CvHybridTracker::updateTrackerWithLowPassFilter(Mat image)
@@ -190,15 +205,18 @@ void CvHybridTracker::updateTrackerWithLowPassFilter(Mat image)
 	Point2f ft_center = fttracker->getTrackingCenter();
 
 	trackbox = ms_track;
-	trackbox.center.x *= params.ms_tracker_weight*trackbox.center.x + params.ft_tracker_weight*ft_center.x;
-	trackbox.center.y *= params.ms_tracker_weight*trackbox.center.y + params.ft_tracker_weight*ft_center.y;
+	trackbox.center.x = params.ms_tracker_weight*trackbox.center.x + params.ft_tracker_weight*ft_center.x;
+	trackbox.center.y = params.ms_tracker_weight*trackbox.center.y + params.ft_tracker_weight*ft_center.y;
 
 	float a = params.low_pass_gain;
-	trackbox.center.x *= a*trackbox.center.x + (1.0-a)*prev_center.x;
-	trackbox.center.y *= a*trackbox.center.y + (1.0-a)*prev_center.y;
+	trackbox.center.x = a*trackbox.center.x + (1.0-a)*prev_center.x;
+	trackbox.center.y = a*trackbox.center.y + (1.0-a)*prev_center.y;
 
 	prev_window.x = trackbox.center.x - prev_window.width/2.0;
 	prev_window.y = trackbox.center.y - prev_window.height/2.0;
+
+	// check for scale
+	// regression
 }
 
 Rect CvHybridTracker::getTrackingWindow()

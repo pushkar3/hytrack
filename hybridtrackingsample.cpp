@@ -17,16 +17,13 @@ Point origin;
 bool selectObject = false;
 int trackObject = 0;
 
-void drawRectangle(Mat* image, Rect win)
-{
+void drawRectangle(Mat* image, Rect win) {
 	rectangle(*image, Point(win.x, win.y), Point(win.x + win.width, win.y
 			+ win.height), Scalar(0, 255, 0), 2, CV_AA);
 }
 
-void onMouse(int event, int x, int y, int, void*)
-{
-	if (selectObject)
-	{
+void onMouse(int event, int x, int y, int, void*) {
+	if (selectObject) {
 		selection.x = MIN(x, origin.x);
 		selection.y = MIN(y, origin.y);
 		selection.width = std::abs(x - origin.x);
@@ -34,8 +31,7 @@ void onMouse(int event, int x, int y, int, void*)
 		selection &= Rect(0, 0, image.cols, image.rows);
 	}
 
-	switch (event)
-	{
+	switch (event) {
 	case CV_EVENT_LBUTTONDOWN:
 		origin = Point(x, y);
 		selection = Rect(x, y, 0, 0);
@@ -49,19 +45,20 @@ void onMouse(int event, int x, int y, int, void*)
 	}
 }
 
+
+
 int main(int argc, char** argv)
 {
-
-	VideoCapture cap;
-
-	cap.open(1);
-	if (!cap.isOpened())
-	{
-		cout << "Failed to open camera" << endl;
-		return 0;
-	}
-	cout << "Opened camera" << endl;
-	cap >> image;
+//	VideoCapture cap;
+//
+//	cap.open(0);
+//	if (!cap.isOpened())
+//	{
+//		cout << "Failed to open camera" << endl;
+//		return 0;
+//	}
+//	cout << "Opened camera" << endl;
+//	cap >> image;
 
 	HybridTrackerParams params;
 	// motion model params
@@ -76,13 +73,17 @@ int main(int argc, char** argv)
 	params.ft_params.window_size = 30;
 
 	HybridTracker tracker(params);
+	char img_file[20] = "seqG/0001.png";
 	namedWindow("Win", 1);
+
 	setMouseCallback("Win", onMouse, 0);
 
 	for (int i = 0; i < 1000; i++)
 	{
+		sprintf(img_file, "seqG/%04d.png", i);
+		image = imread(img_file, CV_LOAD_IMAGE_COLOR);
 
-		cap >> image;
+		//cap >> image;
 		if (image.data == NULL)
 			continue;
 
@@ -99,6 +100,7 @@ int main(int argc, char** argv)
 			{
 				tracker.updateTracker(image);
 				drawRectangle(&image, tracker.getTrackingWindow());
+
 			}
 
 			if (selectObject && selection.width > 0 && selection.height > 0)
@@ -118,4 +120,3 @@ int main(int argc, char** argv)
 	return 0;
 
 }
-
