@@ -39,7 +39,11 @@
 // the use of this software, even if advised of the possibility of such damage.
 //
 //M*/
+#include <stdio.h>
+#include <iostream>
+#include <highgui.h>
 #include "precomp.hpp"
+#include "opencv2/calib3d/calib3d.hpp"
 #include "opencv2/tracker/hybridtracker.hpp"
 
 using namespace cv;
@@ -69,64 +73,58 @@ CvFeatureTracker::~CvFeatureTracker()
 
 void CvFeatureTracker::newTrackingWindow(Mat image, Rect selection)
 {
-	prev_trackwindow = selection;
 	prev_image = image;
-
-	Mat mask = Mat::zeros(image.size(), CV_8UC1);
-	rectangle(mask, Point(prev_trackwindow.x, prev_trackwindow.y), Point(prev_trackwindow.x
-			+ prev_trackwindow.width, prev_trackwindow.y + prev_trackwindow.height), Scalar(
-			255), CV_FILLED);
-
-	prev_desc_vector.clear();
-	detector->detect(prev_image, prev_keypoints, mask);
-
-	if (prev_keypoints.size() > 0)
-		descriptor->compute(prev_image, prev_keypoints, prev_desc);
+	prev_trackwindow = selection;
 }
 
 Rect CvFeatureTracker::updateTrackingWindow(Mat image)
 {
-	newTrackingWindow(prev_image, prev_trackwindow);
+	vector<KeyPoint> prev_keypoints, curr_keypoints;
+	vector<Point2f> prev_keys, curr_keys;
+	Mat prev_desc, curr_desc;
 
-	vector<KeyPoint> current_keypoints;
-	Mat current_desc;
-
-	int windowSize = params.window_size;
-	Rect window(prev_trackwindow.x - windowSize, prev_trackwindow.y - windowSize,
-			prev_trackwindow.width + windowSize, prev_trackwindow.height + windowSize);
-
+	Rect window = prev_trackwindow;
 	Mat mask = Mat::zeros(image.size(), CV_8UC1);
-	rectangle(mask, Point(window.x, window.y), Point(window.x + window.width,
-			window.y + window.height), Scalar(255), CV_FILLED);
+	rectangle(mask, Point(window.x, window.y), Point(window.x + window.width, window.y + window.height), Scalar(255), CV_FILLED);
 
-	detector->detect(image, current_keypoints, mask);
+	detector->detect(prev_image, prev_keypoints, mask);
 
-	if (current_keypoints.size() > 4)
+	window.x -= params.window_size;
+	window.y -= params.window_size;
+	window.width += params.window_size;
+	window.height += params.window_size;
+	rectangle(mask, Point(window.x, window.y), Point(window.x + window.width, window.y + window.height), Scalar(255), CV_FILLED);
+
+	detector->detect(image, curr_keypoints, mask);
+
+	if (prev_keypoints.size() > 8 && curr_keypoints.size() > 4)
 	{
-		descriptor->compute(image, current_keypoints, current_desc);
-		matcher->match(prev_desc, current_desc, matches);
+		descriptor->compute(prev_image, prev_keypoints, prev_desc);
+		descriptor->compute(image, curr_keypoints, curr_desc);
 
-		Point p0 = prev_keypoints[matches[0].trainIdx].pt;
-		Point n0 = current_keypoints[matches[0].queryIdx].pt;
+		matcher->match(prev_desc, curr_desc, matches);
+
+		for(int i = 0; i < matches.size(); i++)
+		{
+			prev_keys.push_back(prev_keypoints[matches[i].queryIdx].pt);
+			curr_keys.push_back(curr_keypoints[matches[i].trainIdx].pt);
+		}
+
+		Mat T = findHomography(prev_keys, curr_keys, CV_RANSAC);
+
+		prev_trackwindow.x += T.at<double>(0, 2);
+		prev_trackwindow.y += T.at<double>(1, 2);
 
 #if 0
-		Point p1 = prev_keypoints[matches[1].trainIdx].pt;
-		Point n1 = current_keypoints[matches[1].queryIdx].pt;
-
-		double dp = sqrt((p0.x - p1.x)*(p0.x - p1.x) + (p0.y - p1.y)*(p0.y - p1.y));
-		double dn = sqrt((n0.x - n1.x)*(n0.x - n1.x) + (n0.y - n1.y)*(n0.y - n1.y));
-
-		double scale = dn/dp;
-		prev_trackwindow.width *= scale;
-		prev_trackwindow.height *= scale;
+		drawMatches(prev_image, prev_keypoints, image, curr_keypoints, matches, disp_matches);
+		imshow("Matches", disp_matches);
+		rectangle(image, Point(prev_trackwindow.x, prev_trackwindow.y), Point(prev_trackwindow.x + prev_trackwindow.width, prev_trackwindow.y + prev_trackwindow.height), Scalar(255, 255, 0), 2, CV_AA);
 #endif
-
-		prev_trackwindow.x += (p0.x - n0.x);
-		prev_trackwindow.y += (p0.y - n0.y);
 	}
 
 	prev_center.x = prev_trackwindow.x;
 	prev_center.y = prev_trackwindow.y;
+	prev_image = image;
 	return prev_trackwindow;
 }
 

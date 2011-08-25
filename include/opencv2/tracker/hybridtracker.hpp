@@ -60,11 +60,8 @@ namespace cv
 struct CvMotionModel
 {
 	enum {LOW_PASS_FILTER = 0, KALMAN_FILTER = 1, EM = 2};
-	CvMotionModel(int model = LOW_PASS_FILTER, float low_pass_gain = 0.1)
-	{
-	}
 
-	CvMotionModel(int model = EM, CvEMParams em_params = CvEMParams())
+	CvMotionModel()
 	{
 	}
 
@@ -108,7 +105,7 @@ struct CvHybridTrackerParams
 	CvHybridTrackerParams(float ft_tracker_weight = 0.5, float ms_tracker_weight = 0.5,
 			CvFeatureTrackerParams ft_params = CvFeatureTrackerParams(),
 			CvMeanShiftTrackerParams ms_params = CvMeanShiftTrackerParams(),
-			CvMotionModel model = CvMotionModel(CvMotionModel::LOW_PASS_FILTER, 0.1))
+			CvMotionModel model = CvMotionModel())
 	{
 	}
 
@@ -131,7 +128,7 @@ private:
 	MatND hist;
 	Rect prev_trackwindow;
 	RotatedRect prev_trackbox;
-	Point2d prev_center;
+	Point2f prev_center;
 
 public:
 	CvMeanShiftTrackerParams params;
@@ -158,13 +155,11 @@ private:
 	vector<DMatch> matches;
 
 	Mat prev_image;
-	vector<Mat> prev_desc_vector;
-	vector<KeyPoint> prev_keypoints;
-	Mat prev_desc;
 	Rect prev_trackwindow;
 	Point2d prev_center;
 
 public:
+	Mat disp_matches;
 	CvFeatureTrackerParams params;
 
 	CvFeatureTracker();
@@ -189,13 +184,16 @@ private:
 	CvEM em_model;
 
 	Rect prev_window;
-	Point2d prev_center;
+	Point2f prev_center;
 	Mat prev_proj;
 	RotatedRect trackbox;
 
-	inline float getL2Norm(Point2d p1, Point2d p2);
-	Mat getDistanceProjection(Mat image, Point2d center);
-	Mat getGaussianProjection(Mat image, int ksize, double sigma, Point2d center);
+	int ittr;
+	Point2f curr_center;
+
+	inline float getL2Norm(Point2f p1, Point2f p2);
+	Mat getDistanceProjection(Mat image, Point2f center);
+	Mat getGaussianProjection(Mat image, int ksize, double sigma, Point2f center);
 	void updateTrackerWithEM(Mat image);
 	void updateTrackerWithLowPassFilter(Mat image);
 
