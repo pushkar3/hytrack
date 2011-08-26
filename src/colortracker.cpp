@@ -91,6 +91,7 @@ RotatedRect CvMeanShiftTracker::updateTrackingWindow(Mat image)
 	int ch[] = {0, 1};
 	calcBackProject(&hue, 1, ch, hist, backproj, ranges);
 	backproj &= mask;
+
 	prev_trackbox = CamShift(backproj, prev_trackwindow, TermCriteria(CV_TERMCRIT_EPS | CV_TERMCRIT_ITER, 10, 1));
 	int cols = backproj.cols, rows = backproj.rows, r = (MIN(cols, rows) + 5) / 6;
 	prev_trackwindow = Rect(prev_trackwindow.x - r, prev_trackwindow.y - r, prev_trackwindow.x + r,
@@ -99,6 +100,7 @@ RotatedRect CvMeanShiftTracker::updateTrackingWindow(Mat image)
 	prev_center.x = prev_trackwindow.x + prev_trackwindow.width / 2;
 	prev_center.y = prev_trackwindow.y + prev_trackwindow.height / 2;
 
+	ellipse(image, prev_trackbox, Scalar(0, 0, 255), 2, CV_AA);
 	return prev_trackbox;
 }
 

@@ -11,7 +11,7 @@
 using namespace cv;
 using namespace std;
 
-Mat image;
+Mat frame, image;
 Rect selection;
 Point origin;
 bool selectObject = false;
@@ -49,16 +49,16 @@ void onMouse(int event, int x, int y, int, void*) {
 
 int main(int argc, char** argv)
 {
-//	VideoCapture cap;
-//
-//	cap.open(0);
-//	if (!cap.isOpened())
-//	{
-//		cout << "Failed to open camera" << endl;
-//		return 0;
-//	}
-//	cout << "Opened camera" << endl;
-//	cap >> image;
+	VideoCapture cap;
+
+	cap.open(0);
+	if (!cap.isOpened())
+	{
+		cout << "Failed to open camera" << endl;
+		return 0;
+	}
+	cout << "Opened camera" << endl;
+	cap >> frame;
 
 	HybridTrackerParams params;
 	// motion model params
@@ -70,23 +70,27 @@ int main(int argc, char** argv)
 	// feature tracking params
 	params.ft_tracker_weight = 0.2;
 	params.ft_params.feature_type = CvFeatureTrackerParams::SIFT;
-	params.ft_params.window_size = 30;
+	params.ft_params.window_size = 0;
 
 	HybridTracker tracker(params);
 	char img_file[20] = "seqG/0001.png";
+	char img_file_num[10];
 	namedWindow("Win", 1);
 
 	setMouseCallback("Win", onMouse, 0);
 
 	for (int i = 0; i < 1000; i++)
 	{
-		sprintf(img_file, "seqG/%04d.png", i);
-		image = imread(img_file, CV_LOAD_IMAGE_COLOR);
+//		sprintf(img_file, "seqG/%04d.png", i);
+//		image = imread(img_file, CV_LOAD_IMAGE_COLOR);
 
-		//cap >> image;
+		cap >> frame;
+		frame.copyTo(image);
 		if (image.data == NULL)
 			continue;
 
+		sprintf(img_file_num, "Frame: %d", i);
+		putText(image, img_file_num, Point(10, image.rows-20), FONT_HERSHEY_PLAIN, 0.75, Scalar(255, 255, 255));
 		if (!image.empty())
 		{
 
@@ -111,7 +115,7 @@ int main(int argc, char** argv)
 
 			imshow("Win", image);
 
-			waitKey(30);
+			waitKey(100);
 		}
 		else
 			i = 0;
