@@ -88,7 +88,7 @@ struct CvMeanShiftTrackerParams
 // Feature tracking parameters
 struct CvFeatureTrackerParams
 {
-	enum {	SIFT = 0, SURF = 1	};
+	enum {	SIFT = 0, SURF = 1, OPTICAL_FLOW = 2 };
 	CvFeatureTrackerParams(int feature_type = 0, int window_size = 0)
 	{
 		feature_type = 0;
@@ -160,7 +160,6 @@ private:
 	Point2d prev_center;
 
 	int ittr;
-	int use_optical_flow;
 	vector<Point2f> features[2];
 
 public:
@@ -170,9 +169,9 @@ public:
 	CvFeatureTracker();
 	CvFeatureTracker(CvFeatureTrackerParams params = CvFeatureTrackerParams(0,0));
 	~CvFeatureTracker();
-	void useOpticalFlow(int flag);
 	void newTrackingWindow(Mat image, Rect selection);
 	Rect updateTrackingWindow(Mat image);
+	Rect updateTrackingWindowWithSIFT(Mat image);
 	Rect updateTrackingWindowWithFlow(Mat image);
 	void setTrackingWindow(Rect _window);
 	Rect getTrackingWindow();

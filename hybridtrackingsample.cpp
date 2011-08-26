@@ -16,6 +16,7 @@ Rect selection;
 Point origin;
 bool selectObject = false;
 int trackObject = 0;
+int live = 1;
 
 void drawRectangle(Mat* image, Rect win) {
 	rectangle(*image, Point(win.x, win.y), Point(win.x + win.width, win.y
@@ -40,25 +41,50 @@ void onMouse(int event, int x, int y, int, void*) {
 	case CV_EVENT_LBUTTONUP:
 		selectObject = false;
 		trackObject = -1;
-		cout << "Init done" << endl;
 		break;
 	}
 }
 
+void help()
+{
+	printf("Usage: ./hytrack live or ./hytrack <test_file> \n\
+For Live View or Benchmarking. Read documentation is source code.\n\n");
+}
 
 
 int main(int argc, char** argv)
 {
-	VideoCapture cap;
 
-	cap.open(0);
-	if (!cap.isOpened())
-	{
-		cout << "Failed to open camera" << endl;
-		return 0;
+	if(argc != 2) {
+		help();
+		return 1;
 	}
-	cout << "Opened camera" << endl;
-	cap >> frame;
+
+	FILE* f;
+	VideoCapture cap;
+	char test_file[20] = "";
+	char dir[20] = "";
+
+	if (strcmp(argv[1], "live") != 0)
+	{
+		sprintf(test_file, "%s", argv[1]);
+		f = fopen(test_file, "r");
+		char vid[20];
+		fscanf(f, "%s\n", vid);
+		cout << "Benchmarking against " << vid << endl;
+		live = 0;
+	}
+	else
+	{
+		cap.open(0);
+		if (!cap.isOpened())
+		{
+			cout << "Failed to open camera" << endl;
+			return 0;
+		}
+		cout << "Opened camera" << endl;
+		cap >> frame;
+	}
 
 	HybridTrackerParams params;
 	// motion model params
@@ -69,7 +95,7 @@ int main(int argc, char** argv)
 	params.ms_params.tracking_type = CvMeanShiftTrackerParams::HS;
 	// feature tracking params
 	params.ft_tracker_weight = 0.2;
-	params.ft_params.feature_type = CvFeatureTrackerParams::SIFT;
+	params.ft_params.feature_type = CvFeatureTrackerParams::OPTICAL_FLOW;
 	params.ft_params.window_size = 0;
 
 	HybridTracker tracker(params);
@@ -79,13 +105,24 @@ int main(int argc, char** argv)
 
 	setMouseCallback("Win", onMouse, 0);
 
-	for (int i = 0; i < 1000; i++)
+	int i = 0;
+	float w[4];
+	while(1)
 	{
-//		sprintf(img_file, "seqG/%04d.png", i);
-//		image = imread(img_file, CV_LOAD_IMAGE_COLOR);
+		i++;
+		if (live)
+		{
+			cap >> frame;
+			frame.copyTo(image);
+		}
+		else
+		{
+			fscanf(f, "%d %f %f %f %f\n", &i, &w[0], &w[1], &w[2], &w[3]);
+			sprintf(img_file, "seqG/%04d.png", i);
+			image = imread(img_file, CV_LOAD_IMAGE_COLOR);
+			selection = Rect(w[0]*image.cols, w[1]*image.rows, w[2]*image.cols, w[3]*image.rows);
+		}
 
-		cap >> frame;
-		frame.copyTo(image);
 		if (image.data == NULL)
 			continue;
 
@@ -104,7 +141,6 @@ int main(int argc, char** argv)
 			{
 				tracker.updateTracker(image);
 				drawRectangle(&image, tracker.getTrackingWindow());
-
 			}
 
 			if (selectObject && selection.width > 0 && selection.height > 0)
@@ -113,6 +149,7 @@ int main(int argc, char** argv)
 				bitwise_not(roi, roi);
 			}
 
+			drawRectangle(&image, Rect(w[0]*image.cols, w[1]*image.rows, w[2]*image.cols, w[3]*image.rows));
 			imshow("Win", image);
 
 			waitKey(100);
@@ -121,6 +158,7 @@ int main(int argc, char** argv)
 			i = 0;
 	}
 
+	fclose(f);
 	return 0;
 
 }

@@ -70,17 +70,10 @@ CvFeatureTracker::CvFeatureTracker(CvFeatureTrackerParams _params) :
 	descriptor = new SurfDescriptorExtractor(3, 4, false);
 
 	matcher = new BruteForceMatcher<L2<float> > ();
-
-	useOpticalFlow(1);
 }
 
 CvFeatureTracker::~CvFeatureTracker()
 {
-}
-
-void CvFeatureTracker::useOpticalFlow(int flag)
-{
-	use_optical_flow = 1;
 }
 
 void CvFeatureTracker::newTrackingWindow(Mat image, Rect selection)
@@ -94,6 +87,14 @@ void CvFeatureTracker::newTrackingWindow(Mat image, Rect selection)
 }
 
 Rect CvFeatureTracker::updateTrackingWindow(Mat image)
+{
+	if(params.feature_type == CvFeatureTrackerParams::OPTICAL_FLOW)
+		return updateTrackingWindowWithFlow(image);
+	else
+		updateTrackingWindowWithSIFT(image);
+}
+
+Rect CvFeatureTracker::updateTrackingWindowWithSIFT(Mat image)
 {
 	ittr++;
 	vector<KeyPoint> prev_keypoints, curr_keypoints;
@@ -133,25 +134,6 @@ Rect CvFeatureTracker::updateTrackingWindow(Mat image)
 
 		prev_trackwindow.x += T.at<double> (0, 2);
 		prev_trackwindow.y += T.at<double> (1, 2);
-
-#if 0
-		printf("Num of query features: %d, train features; %d, Matches: %d\n ", prev_keypoints.size(), curr_keypoints.size(), matches.size());
-		printf("FeatureTracker center is %d, %d\n", prev_trackwindow.x, prev_trackwindow.y);
-		printf("FeatureTracker Iteration is %d: Move by %.4f, %.4f\n", ittr, T.at<double>(0, 2), T.at<double>(1, 2));
-		for(int i = 0; i < 3; i++)
-		{
-			for(int j = 0; j < 3; j++)
-			{
-				printf("%f\t", T.at<double>(i, j));
-			}
-			printf("\n");
-		}
-		printf("\n\n");
-		drawMatches(prev_image, prev_keypoints, image, curr_keypoints, matches, disp_matches);
-		imshow("Matches", disp_matches);
-		imwrite("matches.jpg", disp_matches);
-		rectangle(image, Point(prev_trackwindow.x, prev_trackwindow.y), Point(prev_trackwindow.x + prev_trackwindow.width, prev_trackwindow.y + prev_trackwindow.height), Scalar(255, 255, 0), 2, CV_AA);
-#endif
 	}
 
 	prev_center.x = prev_trackwindow.x;
@@ -162,13 +144,12 @@ Rect CvFeatureTracker::updateTrackingWindow(Mat image)
 
 Rect CvFeatureTracker::updateTrackingWindowWithFlow(Mat image)
 {
+	ittr++;
 	Size subPixWinSize(10,10), winSize(31,31);
 	Mat image_bw;
 	TermCriteria termcrit(CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 20, 0.03);
 	vector<uchar> status;
 	vector<float> err;
-
-	ittr++;
 
 	cvtColor(image, image_bw, CV_BGR2GRAY);
 	cvtColor(prev_image, prev_image_bw, CV_BGR2GRAY);
@@ -200,8 +181,6 @@ Rect CvFeatureTracker::updateTrackingWindowWithFlow(Mat image)
 				feature1_center.y += features[1][i].y;
 				goodtracks++;
 			}
-//			printf("%lf %lf\n", features[1][i].x, features[1][i].y);
-//			circle(image, features[1][i], 3, Scalar(0, 255, 0), -1, 8);
 		}
 
 		feature0_center.x /= goodtracks;
@@ -214,12 +193,7 @@ Rect CvFeatureTracker::updateTrackingWindowWithFlow(Mat image)
 
 		prev_trackwindow.x = (int)prev_center.x;
 		prev_trackwindow.y = (int)prev_center.y;
-
-		rectangle(image, Point(prev_trackwindow.x, prev_trackwindow.y), Point(
-				prev_trackwindow.x + prev_trackwindow.width, prev_trackwindow.y
-						+ prev_trackwindow.height), Scalar(255, 255, 0), 1, CV_AA);
 	}
-//	printf("\n");
 
 	swap(features[0], features[1]);
 	image.copyTo(prev_image);
