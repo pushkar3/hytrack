@@ -2,7 +2,20 @@ Index: samples/cpp/hybridtrackingsample.cpp
 ===================================================================
 --- samples/cpp/hybridtrackingsample.cpp	(revision 0)
 +++ samples/cpp/hybridtrackingsample.cpp	(revision 0)
-@@ -0,0 +1,121 @@
+@@ -0,0 +1,177 @@
++/*
++ *
++ * Hybrid Tracking in OpenCV
++ * Usage: ./hybridtrackingsample live
++ *
++ * For Benchmarking against the Bonn benchmark dataset
++ * wget http://www.iai.uni-bonn.de/~kleind/tracking/datasets/seqG.zip
++ * unzip seqG.zip -d ./seqG
++ * ffmpeg -i seqG/Vid_G_rubikscube.avi seqG/%04d.png
++ * ./hytrack seqG/Vid_G_rubikscube.txt
++ *
++ */
++
 +#include <cv.h>
 +#include <ml.h>
 +#include <cvaux.h>
@@ -16,22 +29,20 @@ Index: samples/cpp/hybridtrackingsample.cpp
 +using namespace cv;
 +using namespace std;
 +
-+Mat image;
++Mat frame, image;
 +Rect selection;
 +Point origin;
 +bool selectObject = false;
 +int trackObject = 0;
++int live = 1;
 +
-+void drawRectangle(Mat* image, Rect win)
-+{
++void drawRectangle(Mat* image, Rect win) {
 +	rectangle(*image, Point(win.x, win.y), Point(win.x + win.width, win.y
 +			+ win.height), Scalar(0, 255, 0), 2, CV_AA);
 +}
 +
-+void onMouse(int event, int x, int y, int, void*)
-+{
-+	if (selectObject)
-+	{
++void onMouse(int event, int x, int y, int, void*) {
++	if (selectObject) {
 +		selection.x = MIN(x, origin.x);
 +		selection.y = MIN(y, origin.y);
 +		selection.width = std::abs(x - origin.x);
@@ -39,8 +50,7 @@ Index: samples/cpp/hybridtrackingsample.cpp
 +		selection &= Rect(0, 0, image.cols, image.rows);
 +	}
 +
-+	switch (event)
-+	{
++	switch (event) {
 +	case CV_EVENT_LBUTTONDOWN:
 +		origin = Point(x, y);
 +		selection = Rect(x, y, 0, 0);
@@ -49,24 +59,50 @@ Index: samples/cpp/hybridtrackingsample.cpp
 +	case CV_EVENT_LBUTTONUP:
 +		selectObject = false;
 +		trackObject = -1;
-+		cout << "Init done" << endl;
 +		break;
 +	}
 +}
 +
++void help()
++{
++	printf("Usage: ./hytrack live or ./hytrack <test_file> \n\
++For Live View or Benchmarking. Read documentation is source code.\n\n");
++}
++
++
 +int main(int argc, char** argv)
 +{
 +
-+	VideoCapture cap;
-+
-+	cap.open(1);
-+	if (!cap.isOpened())
-+	{
-+		cout << "Failed to open camera" << endl;
-+		return 0;
++	if(argc != 2) {
++		help();
++		return 1;
 +	}
-+	cout << "Opened camera" << endl;
-+	cap >> image;
++
++	FILE* f;
++	VideoCapture cap;
++	char test_file[20] = "";
++	char dir[20] = "";
++
++	if (strcmp(argv[1], "live") != 0)
++	{
++		sprintf(test_file, "%s", argv[1]);
++		f = fopen(test_file, "r");
++		char vid[20];
++		fscanf(f, "%s\n", vid);
++		cout << "Benchmarking against " << vid << endl;
++		live = 0;
++	}
++	else
++	{
++		cap.open(0);
++		if (!cap.isOpened())
++		{
++			cout << "Failed to open camera" << endl;
++			return 0;
++		}
++		cout << "Opened camera" << endl;
++		cap >> frame;
++	}
 +
 +	HybridTrackerParams params;
 +	// motion model params
@@ -77,20 +113,39 @@ Index: samples/cpp/hybridtrackingsample.cpp
 +	params.ms_params.tracking_type = CvMeanShiftTrackerParams::HS;
 +	// feature tracking params
 +	params.ft_tracker_weight = 0.2;
-+	params.ft_params.feature_type = CvFeatureTrackerParams::SIFT;
-+	params.ft_params.window_size = 30;
++	params.ft_params.feature_type = CvFeatureTrackerParams::OPTICAL_FLOW;
++	params.ft_params.window_size = 0;
 +
 +	HybridTracker tracker(params);
++	char img_file[20] = "seqG/0001.png";
++	char img_file_num[10];
 +	namedWindow("Win", 1);
++
 +	setMouseCallback("Win", onMouse, 0);
 +
-+	for (int i = 0; i < 1000; i++)
++	int i = 0;
++	float w[4];
++	while(1)
 +	{
++		i++;
++		if (live)
++		{
++			cap >> frame;
++			frame.copyTo(image);
++		}
++		else
++		{
++			fscanf(f, "%d %f %f %f %f\n", &i, &w[0], &w[1], &w[2], &w[3]);
++			sprintf(img_file, "seqG/%04d.png", i);
++			image = imread(img_file, CV_LOAD_IMAGE_COLOR);
++			selection = Rect(w[0]*image.cols, w[1]*image.rows, w[2]*image.cols, w[3]*image.rows);
++		}
 +
-+		cap >> image;
 +		if (image.data == NULL)
 +			continue;
 +
++		sprintf(img_file_num, "Frame: %d", i);
++		putText(image, img_file_num, Point(10, image.rows-20), FONT_HERSHEY_PLAIN, 0.75, Scalar(255, 255, 255));
 +		if (!image.empty())
 +		{
 +
@@ -112,23 +167,24 @@ Index: samples/cpp/hybridtrackingsample.cpp
 +				bitwise_not(roi, roi);
 +			}
 +
++			drawRectangle(&image, Rect(w[0]*image.cols, w[1]*image.rows, w[2]*image.cols, w[3]*image.rows));
 +			imshow("Win", image);
 +
-+			waitKey(30);
++			waitKey(100);
 +		}
 +		else
 +			i = 0;
 +	}
 +
++	fclose(f);
 +	return 0;
 +
 +}
-+
 Index: modules/contrib/include/opencv2/tracker/hybridtracker.hpp
 ===================================================================
 --- modules/contrib/include/opencv2/tracker/hybridtracker.hpp	(revision 0)
 +++ modules/contrib/include/opencv2/tracker/hybridtracker.hpp	(revision 0)
-@@ -0,0 +1,224 @@
+@@ -0,0 +1,228 @@
 +//*M///////////////////////////////////////////////////////////////////////////////////////
 +//
 +//  IMPORTANT: READ BEFORE DOWNLOADING, COPYING, INSTALLING OR USING.
@@ -191,11 +247,8 @@ Index: modules/contrib/include/opencv2/tracker/hybridtracker.hpp
 +struct CvMotionModel
 +{
 +	enum {LOW_PASS_FILTER = 0, KALMAN_FILTER = 1, EM = 2};
-+	CvMotionModel(int model = LOW_PASS_FILTER, float low_pass_gain = 0.1)
-+	{
-+	}
 +
-+	CvMotionModel(int model = EM, CvEMParams em_params = CvEMParams())
++	CvMotionModel()
 +	{
 +	}
 +
@@ -222,7 +275,7 @@ Index: modules/contrib/include/opencv2/tracker/hybridtracker.hpp
 +// Feature tracking parameters
 +struct CvFeatureTrackerParams
 +{
-+	enum {	SIFT = 0, SURF = 1	};
++	enum {	SIFT = 0, SURF = 1, OPTICAL_FLOW = 2 };
 +	CvFeatureTrackerParams(int feature_type = 0, int window_size = 0)
 +	{
 +		feature_type = 0;
@@ -239,7 +292,7 @@ Index: modules/contrib/include/opencv2/tracker/hybridtracker.hpp
 +	CvHybridTrackerParams(float ft_tracker_weight = 0.5, float ms_tracker_weight = 0.5,
 +			CvFeatureTrackerParams ft_params = CvFeatureTrackerParams(),
 +			CvMeanShiftTrackerParams ms_params = CvMeanShiftTrackerParams(),
-+			CvMotionModel model = CvMotionModel(CvMotionModel::LOW_PASS_FILTER, 0.1))
++			CvMotionModel model = CvMotionModel())
 +	{
 +	}
 +
@@ -262,7 +315,7 @@ Index: modules/contrib/include/opencv2/tracker/hybridtracker.hpp
 +	MatND hist;
 +	Rect prev_trackwindow;
 +	RotatedRect prev_trackbox;
-+	Point2d prev_center;
++	Point2f prev_center;
 +
 +public:
 +	CvMeanShiftTrackerParams params;
@@ -289,13 +342,15 @@ Index: modules/contrib/include/opencv2/tracker/hybridtracker.hpp
 +	vector<DMatch> matches;
 +
 +	Mat prev_image;
-+	vector<Mat> prev_desc_vector;
-+	vector<KeyPoint> prev_keypoints;
-+	Mat prev_desc;
++	Mat prev_image_bw;
 +	Rect prev_trackwindow;
 +	Point2d prev_center;
 +
++	int ittr;
++	vector<Point2f> features[2];
++
 +public:
++	Mat disp_matches;
 +	CvFeatureTrackerParams params;
 +
 +	CvFeatureTracker();
@@ -303,6 +358,8 @@ Index: modules/contrib/include/opencv2/tracker/hybridtracker.hpp
 +	~CvFeatureTracker();
 +	void newTrackingWindow(Mat image, Rect selection);
 +	Rect updateTrackingWindow(Mat image);
++	Rect updateTrackingWindowWithSIFT(Mat image);
++	Rect updateTrackingWindowWithFlow(Mat image);
 +	void setTrackingWindow(Rect _window);
 +	Rect getTrackingWindow();
 +	Point2f getTrackingCenter();
@@ -320,13 +377,16 @@ Index: modules/contrib/include/opencv2/tracker/hybridtracker.hpp
 +	CvEM em_model;
 +
 +	Rect prev_window;
-+	Point2d prev_center;
++	Point2f prev_center;
 +	Mat prev_proj;
 +	RotatedRect trackbox;
 +
-+	inline float getL2Norm(Point2d p1, Point2d p2);
-+	Mat getDistanceProjection(Mat image, Point2d center);
-+	Mat getGaussianProjection(Mat image, int ksize, double sigma, Point2d center);
++	int ittr;
++	Point2f curr_center;
++
++	inline float getL2Norm(Point2f p1, Point2f p2);
++	Mat getDistanceProjection(Mat image, Point2f center);
++	Mat getGaussianProjection(Mat image, int ksize, double sigma, Point2f center);
 +	void updateTrackerWithEM(Mat image);
 +	void updateTrackerWithLowPassFilter(Mat image);
 +
@@ -534,7 +594,7 @@ Index: modules/contrib/src/featuretracker.cpp
 ===================================================================
 --- modules/contrib/src/featuretracker.cpp	(revision 0)
 +++ modules/contrib/src/featuretracker.cpp	(revision 0)
-@@ -0,0 +1,147 @@
+@@ -0,0 +1,219 @@
 +//*M///////////////////////////////////////////////////////////////////////////////////////
 +//
 +//  IMPORTANT: READ BEFORE DOWNLOADING, COPYING, INSTALLING OR USING.
@@ -576,22 +636,32 @@ Index: modules/contrib/src/featuretracker.cpp
 +// the use of this software, even if advised of the possibility of such damage.
 +//
 +//M*/
++#include <stdio.h>
++#include <iostream>
++#include <highgui.h>
 +#include "precomp.hpp"
++#include "opencv2/calib3d/calib3d.hpp"
 +#include "opencv2/tracker/hybridtracker.hpp"
 +
 +using namespace cv;
 +
-+CvFeatureTracker::CvFeatureTracker(CvFeatureTrackerParams _params) : params(_params)
++CvFeatureTracker::CvFeatureTracker(CvFeatureTrackerParams _params) :
++	params(_params)
 +{
 +	switch (params.feature_type)
 +	{
 +	case CvFeatureTrackerParams::SIFT:
 +		detector = new SiftFeatureDetector(
 +				SIFT::DetectorParams::GET_DEFAULT_THRESHOLD(),
-+				SIFT::DetectorParams::GET_DEFAULT_EDGE_THRESHOLD(),
-+				SIFT::CommonParams::AVERAGE_ANGLE);
++				SIFT::DetectorParams::GET_DEFAULT_EDGE_THRESHOLD() + 0.7,
++				SIFT::CommonParams::DEFAULT_NOCTAVES + 4,
++				SIFT::CommonParams::DEFAULT_NOCTAVE_LAYERS + 2,
++				SIFT::CommonParams::DEFAULT_FIRST_OCTAVE,
++				SIFT::CommonParams::FIRST_ANGLE);
 +	case CvFeatureTrackerParams::SURF:
 +		detector = new SurfFeatureDetector(400, 3, 4);
++	default:
++		detector = new GoodFeaturesToTrackDetector();
 +	}
 +
 +	descriptor = new SurfDescriptorExtractor(3, 4, false);
@@ -599,72 +669,131 @@ Index: modules/contrib/src/featuretracker.cpp
 +	matcher = new BruteForceMatcher<L2<float> > ();
 +}
 +
-+
 +CvFeatureTracker::~CvFeatureTracker()
 +{
 +}
 +
 +void CvFeatureTracker::newTrackingWindow(Mat image, Rect selection)
 +{
++	image.copyTo(prev_image);
++	cvtColor(prev_image, prev_image_bw, CV_BGR2GRAY);
 +	prev_trackwindow = selection;
-+	prev_image = image;
-+
-+	Mat mask = Mat::zeros(image.size(), CV_8UC1);
-+	rectangle(mask, Point(prev_trackwindow.x, prev_trackwindow.y), Point(prev_trackwindow.x
-+			+ prev_trackwindow.width, prev_trackwindow.y + prev_trackwindow.height), Scalar(
-+			255), CV_FILLED);
-+
-+	prev_desc_vector.clear();
-+	detector->detect(prev_image, prev_keypoints, mask);
-+
-+	if (prev_keypoints.size() > 0)
-+		descriptor->compute(prev_image, prev_keypoints, prev_desc);
++	prev_center.x = selection.x;
++	prev_center.y = selection.y;
++	ittr = 0;
 +}
 +
 +Rect CvFeatureTracker::updateTrackingWindow(Mat image)
 +{
-+	newTrackingWindow(prev_image, prev_trackwindow);
++	if(params.feature_type == CvFeatureTrackerParams::OPTICAL_FLOW)
++		return updateTrackingWindowWithFlow(image);
++	else
++		updateTrackingWindowWithSIFT(image);
++}
 +
-+	vector<KeyPoint> current_keypoints;
-+	Mat current_desc;
++Rect CvFeatureTracker::updateTrackingWindowWithSIFT(Mat image)
++{
++	ittr++;
++	vector<KeyPoint> prev_keypoints, curr_keypoints;
++	vector<Point2f> prev_keys, curr_keys;
++	Mat prev_desc, curr_desc;
 +
-+	int windowSize = params.window_size;
-+	Rect window(prev_trackwindow.x - windowSize, prev_trackwindow.y - windowSize,
-+			prev_trackwindow.width + windowSize, prev_trackwindow.height + windowSize);
-+
++	Rect window = prev_trackwindow;
 +	Mat mask = Mat::zeros(image.size(), CV_8UC1);
 +	rectangle(mask, Point(window.x, window.y), Point(window.x + window.width,
 +			window.y + window.height), Scalar(255), CV_FILLED);
 +
-+	detector->detect(image, current_keypoints, mask);
++	detector->detect(prev_image, prev_keypoints, mask);
 +
-+	if (current_keypoints.size() > 4)
++	window.x -= params.window_size;
++	window.y -= params.window_size;
++	window.width += params.window_size;
++	window.height += params.window_size;
++	rectangle(mask, Point(window.x, window.y), Point(window.x + window.width,
++			window.y + window.height), Scalar(255), CV_FILLED);
++
++	detector->detect(image, curr_keypoints, mask);
++
++	if (prev_keypoints.size() > 4 && curr_keypoints.size() > 4)
 +	{
-+		descriptor->compute(image, current_keypoints, current_desc);
-+		matcher->match(prev_desc, current_desc, matches);
++		descriptor->compute(prev_image, prev_keypoints, prev_desc);
++		descriptor->compute(image, curr_keypoints, curr_desc);
 +
-+		Point p0 = prev_keypoints[matches[0].trainIdx].pt;
-+		Point n0 = current_keypoints[matches[0].queryIdx].pt;
++		matcher->match(prev_desc, curr_desc, matches);
 +
-+#if 0
-+		Point p1 = prev_keypoints[matches[1].trainIdx].pt;
-+		Point n1 = current_keypoints[matches[1].queryIdx].pt;
++		for (int i = 0; i < matches.size(); i++)
++		{
++			prev_keys.push_back(prev_keypoints[matches[i].queryIdx].pt);
++			curr_keys.push_back(curr_keypoints[matches[i].trainIdx].pt);
++		}
 +
-+		double dp = sqrt((p0.x - p1.x)*(p0.x - p1.x) + (p0.y - p1.y)*(p0.y - p1.y));
-+		double dn = sqrt((n0.x - n1.x)*(n0.x - n1.x) + (n0.y - n1.y)*(n0.y - n1.y));
++		Mat T = findHomography(prev_keys, curr_keys, CV_LMEDS);
 +
-+		double scale = dn/dp;
-+		prev_trackwindow.width *= scale;
-+		prev_trackwindow.height *= scale;
-+#endif
-+
-+		prev_trackwindow.x += (p0.x - n0.x);
-+		prev_trackwindow.y += (p0.y - n0.y);
++		prev_trackwindow.x += T.at<double> (0, 2);
++		prev_trackwindow.y += T.at<double> (1, 2);
 +	}
 +
 +	prev_center.x = prev_trackwindow.x;
 +	prev_center.y = prev_trackwindow.y;
++	prev_image = image;
 +	return prev_trackwindow;
++}
++
++Rect CvFeatureTracker::updateTrackingWindowWithFlow(Mat image)
++{
++	ittr++;
++	Size subPixWinSize(10,10), winSize(31,31);
++	Mat image_bw;
++	TermCriteria termcrit(CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, 20, 0.03);
++	vector<uchar> status;
++	vector<float> err;
++
++	cvtColor(image, image_bw, CV_BGR2GRAY);
++	cvtColor(prev_image, prev_image_bw, CV_BGR2GRAY);
++
++	if (ittr == 1)
++	{
++		Mat mask = Mat::zeros(image.size(), CV_8UC1);
++		rectangle(mask, Point(prev_trackwindow.x, prev_trackwindow.y), Point(
++				prev_trackwindow.x + prev_trackwindow.width, prev_trackwindow.y
++						+ prev_trackwindow.height), Scalar(255), CV_FILLED);
++		goodFeaturesToTrack(image_bw, features[1], 500, 0.01, 20, mask, 3, 0, 0.04);
++		cornerSubPix(image_bw, features[1], subPixWinSize, Size(-1, -1), termcrit);
++	}
++	else
++	{
++		calcOpticalFlowPyrLK(prev_image_bw, image_bw, features[0], features[1],
++				status, err, winSize, 3, termcrit);
++
++		Point2f feature0_center(0, 0);
++		Point2f feature1_center(0, 0);
++		int goodtracks = 0;
++		for (int i = 0; i < features[1].size(); i++)
++		{
++			if (status[i] == 1)
++			{
++				feature0_center.x += features[0][i].x;
++				feature0_center.y += features[0][i].y;
++				feature1_center.x += features[1][i].x;
++				feature1_center.y += features[1][i].y;
++				goodtracks++;
++			}
++		}
++
++		feature0_center.x /= goodtracks;
++		feature0_center.y /= goodtracks;
++		feature1_center.x /= goodtracks;
++		feature1_center.y /= goodtracks;
++
++		prev_center.x += (feature1_center.x - feature0_center.x);
++		prev_center.y += (feature1_center.y - feature0_center.y);
++
++		prev_trackwindow.x = (int)prev_center.x;
++		prev_trackwindow.y = (int)prev_center.y;
++	}
++
++	swap(features[0], features[1]);
++	image.copyTo(prev_image);
 +}
 +
 +void CvFeatureTracker::setTrackingWindow(Rect _window)
@@ -677,16 +806,19 @@ Index: modules/contrib/src/featuretracker.cpp
 +	return prev_trackwindow;
 +}
 +
-+
 +Point2f CvFeatureTracker::getTrackingCenter()
 +{
-+	return prev_center;
++	Point2f center(0, 0);
++	center.x = prev_center.x + prev_trackwindow.width/2.0;
++	center.y = prev_center.y + prev_trackwindow.height/2.0;
++	return center;
 +}
++
 Index: modules/contrib/src/colortracker.cpp
 ===================================================================
 --- modules/contrib/src/colortracker.cpp	(revision 0)
 +++ modules/contrib/src/colortracker.cpp	(revision 0)
-@@ -0,0 +1,132 @@
+@@ -0,0 +1,137 @@
 +//*M///////////////////////////////////////////////////////////////////////////////////////
 +//
 +//  IMPORTANT: READ BEFORE DOWNLOADING, COPYING, INSTALLING OR USING.
@@ -780,6 +912,7 @@ Index: modules/contrib/src/colortracker.cpp
 +	int ch[] = {0, 1};
 +	calcBackProject(&hue, 1, ch, hist, backproj, ranges);
 +	backproj &= mask;
++
 +	prev_trackbox = CamShift(backproj, prev_trackwindow, TermCriteria(CV_TERMCRIT_EPS | CV_TERMCRIT_ITER, 10, 1));
 +	int cols = backproj.cols, rows = backproj.rows, r = (MIN(cols, rows) + 5) / 6;
 +	prev_trackwindow = Rect(prev_trackwindow.x - r, prev_trackwindow.y - r, prev_trackwindow.x + r,
@@ -787,6 +920,10 @@ Index: modules/contrib/src/colortracker.cpp
 +
 +	prev_center.x = prev_trackwindow.x + prev_trackwindow.width / 2;
 +	prev_center.y = prev_trackwindow.y + prev_trackwindow.height / 2;
++
++#ifdef DEBUG_HYTRACKER
++	ellipse(image, prev_trackbox, Scalar(0, 0, 255), 1, CV_AA);
++#endif
 +
 +	return prev_trackbox;
 +}
@@ -823,7 +960,7 @@ Index: modules/contrib/src/hybridtracker.cpp
 ===================================================================
 --- modules/contrib/src/hybridtracker.cpp	(revision 0)
 +++ modules/contrib/src/hybridtracker.cpp	(revision 0)
-@@ -0,0 +1,208 @@
+@@ -0,0 +1,225 @@
 +//*M///////////////////////////////////////////////////////////////////////////////////////
 +//
 +//  IMPORTANT: READ BEFORE DOWNLOADING, COPYING, INSTALLING OR USING.
@@ -871,38 +1008,37 @@ Index: modules/contrib/src/hybridtracker.cpp
 +using namespace cv;
 +using namespace std;
 +
-+CvHybridTracker::CvHybridTracker()
-+{
++CvHybridTracker::CvHybridTracker() {
 +
 +}
 +
-+
-+CvHybridTracker::CvHybridTracker(HybridTrackerParams _params) : params(_params)
-+{
++CvHybridTracker::CvHybridTracker(HybridTrackerParams _params) :
++	params(_params) {
 +	params.ft_params.feature_type = CvFeatureTrackerParams::SIFT;
 +	mstracker = new CvMeanShiftTracker(params.ms_params);
 +	fttracker = new CvFeatureTracker(params.ft_params);
 +}
 +
-+CvHybridTracker::~CvHybridTracker()
-+{
-+	if(mstracker != NULL) delete mstracker;
-+	if(fttracker != NULL) delete fttracker;
++CvHybridTracker::~CvHybridTracker() {
++	if (mstracker != NULL)
++		delete mstracker;
++	if (fttracker != NULL)
++		delete fttracker;
 +}
 +
-+inline float CvHybridTracker::getL2Norm(Point2d p1, Point2d p2)
-+{
-+	float distance = (p1.x-p2.x)*(p1.x-p2.x) + (p1.y-p2.y)*(p1.y-p2.y);
++inline float CvHybridTracker::getL2Norm(Point2f p1, Point2f p2) {
++	float distance = (p1.x - p2.x) * (p1.x - p2.x) + (p1.y - p2.y) * (p1.y
++			- p2.y);
 +	return sqrt(distance);
 +}
 +
-+Mat CvHybridTracker::getDistanceProjection(Mat image, Point2d center)
-+{
++Mat CvHybridTracker::getDistanceProjection(Mat image, Point2f center) {
 +	Mat hist(image.size(), CV_64F);
 +
 +	double lu = getL2Norm(Point(0, 0), center);
 +	double ru = getL2Norm(Point(0, image.size().width), center);
-+	double rd = getL2Norm(Point(image.size().height, image.size().width), center);
++	double rd = getL2Norm(Point(image.size().height, image.size().width),
++			center);
 +	double ld = getL2Norm(Point(image.size().height, 0), center);
 +
 +	double max = (lu < ru) ? lu : ru;
@@ -911,33 +1047,32 @@ Index: modules/contrib/src/hybridtracker.cpp
 +
 +	for (int i = 0; i < hist.rows; i++)
 +		for (int j = 0; j < hist.cols; j++)
-+			hist.at<double> (i, j) = 1.0 - (getL2Norm(Point(i, j), center)/max);
++			hist.at<double> (i, j) = 1.0 - (getL2Norm(Point(i, j), center)
++					/ max);
 +
 +	return hist;
 +}
 +
-+Mat CvHybridTracker::getGaussianProjection(Mat image, int ksize, double sigma,	Point2d center)
-+{
++Mat CvHybridTracker::getGaussianProjection(Mat image, int ksize, double sigma,
++		Point2f center) {
 +	Mat kernel = getGaussianKernel(ksize, sigma, CV_64F);
-+	double max = kernel.at<double> (ksize/2);
++	double max = kernel.at<double> (ksize / 2);
 +
 +	Mat hist(image.size(), CV_64F);
 +	for (int i = 0; i < hist.rows; i++)
-+		for (int j = 0; j < hist.cols; j++)
-+		{
++		for (int j = 0; j < hist.cols; j++) {
 +			int pos = getL2Norm(Point(i, j), center);
 +			if (pos < ksize / 2.0)
-+				hist.at<double> (i, j) = 1.0 - (kernel.at<double> (pos)/max);
++				hist.at<double> (i, j) = 1.0 - (kernel.at<double> (pos) / max);
 +		}
 +
 +	return hist;
 +}
 +
-+
-+void CvHybridTracker::newTracker(Mat image, Rect selection)
-+{
++void CvHybridTracker::newTracker(Mat image, Rect selection) {
 +	prev_proj = Mat::zeros(image.size(), CV_64FC1);
-+	prev_center = Point2f(selection.x+selection.width/2.0, selection.y+selection.height/2.0);
++	prev_center = Point2f(selection.x + selection.width / 2.0, selection.y
++			+ selection.height / 2.0);
 +	prev_window = selection;
 +
 +	mstracker->newTrackingWindow(image, selection);
@@ -948,32 +1083,64 @@ Index: modules/contrib/src/hybridtracker.cpp
 +	params.em_params.probs = NULL;
 +	params.em_params.nclusters = 1;
 +	params.em_params.weights = NULL;
-+	params.em_params.cov_mat_type = CvEM::COV_MAT_DIAGONAL;
++	params.em_params.cov_mat_type = CvEM::COV_MAT_SPHERICAL;
 +	params.em_params.start_step = CvEM::START_AUTO_STEP;
-+	params.em_params.term_crit.max_iter = 10;
-+	params.em_params.term_crit.epsilon = 0.1;
++	params.em_params.term_crit.max_iter = 10000;
++	params.em_params.term_crit.epsilon = 0.001;
 +	params.em_params.term_crit.type = CV_TERMCRIT_ITER | CV_TERMCRIT_EPS;
 +
-+	samples = cvCreateMat(2, 10, CV_32FC1);
++	samples = cvCreateMat(2, 1, CV_32FC1);
 +	labels = cvCreateMat(2, 1, CV_32SC1);
++
++	ittr = 0;
 +}
 +
-+void CvHybridTracker::updateTracker(Mat image)
-+{
-+	mstracker->updateTrackingWindow(image);
-+	fttracker->updateTrackingWindow(image);
++void CvHybridTracker::updateTracker(Mat image) {
++	ittr++;
 +
-+//	if (params.motion_model = CvMotionModel::EM)
-+//		updateTrackerWithEM(image);
-+//	else
-+	updateTrackerWithLowPassFilter(image);
++	//copy over clean images: TODO
++	mstracker->updateTrackingWindow(image);
++	fttracker->updateTrackingWindowWithFlow(image);
++
++	if (params.motion_model == CvMotionModel::EM)
++		updateTrackerWithEM(image);
++	else
++		updateTrackerWithLowPassFilter(image);
++
++	// Regression to find new weights
++	Point2f ms_center = mstracker->getTrackingEllipse().center;
++	Point2f ft_center = fttracker->getTrackingCenter();
++
++#ifdef DEBUG_HYTRACKER
++	circle(image, ms_center, 3, Scalar(0, 0, 255), -1, 8);
++	circle(image, ft_center, 3, Scalar(255, 0, 0), -1, 8);
++	putText(image, "ms", Point(ms_center.x+2, ms_center.y), FONT_HERSHEY_PLAIN, 0.75, Scalar(255, 255, 255));
++	putText(image, "ft", Point(ft_center.x+2, ft_center.y), FONT_HERSHEY_PLAIN, 0.75, Scalar(255, 255, 255));
++#endif
++
++	double ms_len = getL2Norm(ms_center, curr_center);
++	double ft_len = getL2Norm(ft_center, curr_center);
++	double total_len = ms_len + ft_len;
++
++	params.ms_tracker_weight *= (ittr - 1);
++	params.ms_tracker_weight += (ms_len / total_len);
++	params.ms_tracker_weight /= ittr;
++	params.ft_tracker_weight *= (ittr - 1);
++	params.ft_tracker_weight += (ft_len / total_len);
++	params.ft_tracker_weight /= ittr;
++
++	circle(image, prev_center, 3, Scalar(0, 0, 0), -1, 8);
++	circle(image, curr_center, 3, Scalar(255, 255, 255), -1, 8);
++
++	prev_center = curr_center;
++	prev_window.x = (int)(curr_center.x-prev_window.width/2.0);
++	prev_window.y = (int)(curr_center.y-prev_window.height/2.0);
 +
 +	mstracker->setTrackingWindow(prev_window);
 +	fttracker->setTrackingWindow(prev_window);
 +}
 +
-+void CvHybridTracker::updateTrackerWithEM(Mat image)
-+{
++void CvHybridTracker::updateTrackerWithEM(Mat image) {
 +	Mat ms_backproj = mstracker->getHistogramProjection(CV_64F);
 +	Mat ms_distproj = getDistanceProjection(image, mstracker->getTrackingCenter());
 +	Mat ms_proj = ms_backproj.mul(ms_distproj);
@@ -984,51 +1151,38 @@ Index: modules/contrib/src/hybridtracker.cpp
 +	Mat ft_proj = ft_gaussproj.mul(ft_distproj);
 +
 +	Mat proj = params.ms_tracker_weight * ms_proj + params.ft_tracker_weight * ft_proj + prev_proj;
++
 +	int sample_count = countNonZero(proj);
-+	if(samples != NULL) cvReleaseMat(&samples);
-+	samples = cvCreateMat(2, sample_count, CV_32FC1);
++	cvReleaseMat(&samples);
++	cvReleaseMat(&labels);
++	samples = cvCreateMat(sample_count, 2, CV_32FC1);
++	labels = cvCreateMat(sample_count, 1, CV_32SC1);
 +
 +	int count = 0;
 +	for (int i = 0; i < proj.rows; i++)
 +		for (int j = 0; j < proj.cols; j++)
-+			if (proj.at<double> (i, j) > 0)
-+			{
++			if (proj.at<double> (i, j) > 0) {
 +				samples->data.fl[count * 2] = i;
 +				samples->data.fl[count * 2 + 1] = j;
 +				count++;
 +			}
 +
-+	params.em_params.means = em_model.get_means();
-+	params.em_params.covs = (const CvMat**) em_model.get_covs();
-+	params.em_params.weights = em_model.get_weights();
-+
 +	em_model.train(samples, 0, params.em_params, labels);
-+	Point2f center = em_model.getMeans().at<Point2d> (0);
-+	prev_proj = proj;
-+	prev_center = center;
-+	prev_window.x = center.x;
-+	prev_window.y = center.y;
++
++	curr_center.x = em_model.getMeans().at<double> (0, 0);
++	curr_center.y = em_model.getMeans().at<double> (0, 1);
 +}
 +
-+void CvHybridTracker::updateTrackerWithLowPassFilter(Mat image)
-+{
++void CvHybridTracker::updateTrackerWithLowPassFilter(Mat image) {
 +	RotatedRect ms_track = mstracker->getTrackingEllipse();
 +	Point2f ft_center = fttracker->getTrackingCenter();
 +
-+	trackbox = ms_track;
-+	trackbox.center.x *= params.ms_tracker_weight*trackbox.center.x + params.ft_tracker_weight*ft_center.x;
-+	trackbox.center.y *= params.ms_tracker_weight*trackbox.center.y + params.ft_tracker_weight*ft_center.y;
-+
 +	float a = params.low_pass_gain;
-+	trackbox.center.x *= a*trackbox.center.x + (1.0-a)*prev_center.x;
-+	trackbox.center.y *= a*trackbox.center.y + (1.0-a)*prev_center.y;
-+
-+	prev_window.x = trackbox.center.x - prev_window.width/2.0;
-+	prev_window.y = trackbox.center.y - prev_window.height/2.0;
++	curr_center.x = (1.0 - a) * prev_center.x + a * (params.ms_tracker_weight * ms_track.center.x + params.ft_tracker_weight * ft_center.x);
++	curr_center.y = (1.0 - a) * prev_center.y + a * (params.ms_tracker_weight * ms_track.center.y + params.ft_tracker_weight * ft_center.y);
 +}
 +
-+Rect CvHybridTracker::getTrackingWindow()
-+{
++Rect CvHybridTracker::getTrackingWindow() {
 +	return prev_window;
 +}
 +
@@ -1036,7 +1190,7 @@ Index: modules/contrib/precomp.hpp
 ===================================================================
 --- modules/contrib/precomp.hpp	(revision 0)
 +++ modules/contrib/precomp.hpp	(revision 0)
-@@ -0,0 +1,60 @@
+@@ -0,0 +1,63 @@
 +/*M///////////////////////////////////////////////////////////////////////////////////////
 +//
 +//  IMPORTANT: READ BEFORE DOWNLOADING, COPYING, INSTALLING OR USING.
@@ -1089,6 +1243,9 @@ Index: modules/contrib/precomp.hpp
 +#include "cvconfig.h"
 +#endif
 +
++#define DEBUG_HYTRACKER
++
++#include <highgui.h>
 +#include "opencv2/core/core.hpp"
 +#include "opencv2/imgproc/imgproc.hpp"
 +#include "opencv2/features2d/features2d.hpp"

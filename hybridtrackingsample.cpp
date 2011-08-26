@@ -1,3 +1,16 @@
+/*
+ *
+ * Hybrid Tracking in OpenCV
+ * Usage: ./hybridtrackingsample live
+ *
+ * For Benchmarking against the Bonn benchmark dataset
+ * wget http://www.iai.uni-bonn.de/~kleind/tracking/datasets/seqG.zip
+ * unzip seqG.zip -d ./seqG
+ * ffmpeg -i seqG/Vid_G_rubikscube.avi seqG/%04d.png
+ * ./hytrack seqG/Vid_G_rubikscube.txt
+ *
+ */
+
 #include <cv.h>
 #include <ml.h>
 #include <cvaux.h>
