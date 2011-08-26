@@ -155,8 +155,13 @@ private:
 	vector<DMatch> matches;
 
 	Mat prev_image;
+	Mat prev_image_bw;
 	Rect prev_trackwindow;
 	Point2d prev_center;
+
+	int ittr;
+	int use_optical_flow;
+	vector<Point2f> features[2];
 
 public:
 	Mat disp_matches;
@@ -165,8 +170,10 @@ public:
 	CvFeatureTracker();
 	CvFeatureTracker(CvFeatureTrackerParams params = CvFeatureTrackerParams(0,0));
 	~CvFeatureTracker();
+	void useOpticalFlow(int flag);
 	void newTrackingWindow(Mat image, Rect selection);
 	Rect updateTrackingWindow(Mat image);
+	Rect updateTrackingWindowWithFlow(Mat image);
 	void setTrackingWindow(Rect _window);
 	Rect getTrackingWindow();
 	Point2f getTrackingCenter();

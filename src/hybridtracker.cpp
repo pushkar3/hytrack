@@ -135,20 +135,23 @@ void CvHybridTracker::newTracker(Mat image, Rect selection) {
 void CvHybridTracker::updateTracker(Mat image) {
 	ittr++;
 
+	//copy over clean images: TODO
 	mstracker->updateTrackingWindow(image);
-	fttracker->updateTrackingWindow(image);
-
+	fttracker->updateTrackingWindowWithFlow(image);
+//
 	if (params.motion_model == CvMotionModel::EM)
 		updateTrackerWithEM(image);
 	else
 		updateTrackerWithLowPassFilter(image);
 
-	mstracker->setTrackingWindow(prev_window);
-	fttracker->setTrackingWindow(prev_window);
-
 	// Regression to find new weights
 	Point2f ms_center = mstracker->getTrackingEllipse().center;
 	Point2f ft_center = fttracker->getTrackingCenter();
+
+	circle(image, ms_center, 3, Scalar(0, 0, 255), -1, 8);
+	circle(image, ft_center, 3, Scalar(255, 0, 0), -1, 8);
+	putText(image, "ms", Point(ms_center.x+2, ms_center.y), FONT_HERSHEY_PLAIN, 0.75, Scalar(255, 255, 255));
+	putText(image, "ft", Point(ft_center.x+2, ft_center.y), FONT_HERSHEY_PLAIN, 0.75, Scalar(255, 255, 255));
 
 	double ms_len = getL2Norm(ms_center, curr_center);
 	double ft_len = getL2Norm(ft_center, curr_center);
@@ -161,9 +164,15 @@ void CvHybridTracker::updateTracker(Mat image) {
 	params.ft_tracker_weight += (ft_len / total_len);
 	params.ft_tracker_weight /= ittr;
 
+	circle(image, prev_center, 3, Scalar(0, 0, 0), -1, 8);
+	circle(image, curr_center, 3, Scalar(255, 255, 255), -1, 8);
+
 	prev_center = curr_center;
-	prev_window.x = prev_center.x;
-	prev_window.y = prev_center.y;
+	prev_window.x = (int)(curr_center.x-prev_window.width/2.0);
+	prev_window.y = (int)(curr_center.y-prev_window.height/2.0);
+
+	mstracker->setTrackingWindow(prev_window);
+	fttracker->setTrackingWindow(prev_window);
 
 //	printf("weights: %lf %lf\n", params.ms_tracker_weight, params.ft_tracker_weight);
 }
